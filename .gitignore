@@ -1,0 +1,23 @@
+# --- Ansible 관련 ---
+*.retry
+*.log
+*.vault_pass
+# 보안상 매우 중요: 개인 키와 암호화되지 않은 변수 파일 방지
+*.pem
+*.key
+credentials.yml
+secrets.yml
+
+# --- Python 관련 (Ansible 실행 시 생성됨) ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- OS & 에디터 관련 ---
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# --- 환경 설정 ---
+.env
