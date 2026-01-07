@@ -29,6 +29,9 @@ services:
     ports:
       - "8080:80"
       - "2221:22"
+    networks:
+      mgmt_net:
+        ipv4_address: 172.20.0.11
     command: /sbin/init
 
   ceos2:
@@ -59,6 +62,9 @@ services:
     ports:
       - "8082:80"
       - "2222:22"
+    networks:
+      mgmt_net:
+        ipv4_address: 172.20.0.12
     command: /sbin/init
 
   ceos3:
@@ -89,4 +95,15 @@ services:
     ports:
       - "8083:80"
       - "2223:22"
+    networks:
+      mgmt_net:
+        ipv4_address: 172.20.0.13
     command: /sbin/init
+
+networks:
+  mgmt_net:
+    name: mgmt_net  # 네트워크 이름을 고정하여 monitoring 폴더에서도 참조 가능하게 함
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24

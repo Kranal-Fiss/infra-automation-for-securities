@@ -1,54 +1,72 @@
 version: '3.8'
 
 services:
-  ceos1:
-    image: ceosimage:latest  # 이미지 이름 통일
-    container_name: ceos1
-    privileged: true
-    environment:
-      - CEOS=1
-      - SKIP_ZEROTOUCH_BARCODE=1
-      - INTFTYPE=eth
+  # 1. PostgreSQL Database (Zabbix 데이터 저장소)
+  postgres-server:
+    image: postgres:15-alpine
+    container_name: postgres-server
     volumes:
-      - ../../certs:/mnt/flash/certs:ro  # 경로 수정
+      - ./zbx_env/var/lib/postgresql/data:/var/lib/postgresql/data:rw
+    environment:
+      - POSTGRES_USER=zabbix
+      - POSTGRES_PASSWORD=zabbix
+      - POSTGRES_DB=zabbix
+    networks:
+      - mgmt_net
+
+  # 2. Zabbix Server
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:alpine-6.4-latest
+    container_name: zabbix-server
     ports:
-      - "50051:50051"
-      - "8080:80"
-    networks:
-      mgmt_net:
-        ipv4_address: 172.20.0.11
-
-  ceos2:
-    image: ceosimage:latest
-    container_name: ceos2
-    privileged: true
-    environment:
-      - CEOS=1
-      - SKIP_ZEROTOUCH_BARCODE=1
-      - INTFTYPE=eth
+      - "10051:10051"
     volumes:
-      - ../../certs:/mnt/flash/certs:ro
-    networks:
-      mgmt_net:
-        ipv4_address: 172.20.0.12
-
-  ceos3:
-    image: ceosimage:latest
-    container_name: ceos3
-    privileged: true
+      - ./zbx_env/usr/lib/zabbix/alertscripts:/usr/lib/zabbix/alertscripts:ro
+      - ./zbx_env/usr/lib/zabbix/externalscripts:/usr/lib/zabbix/externalscripts:ro
     environment:
-      - CEOS=1
-      - SKIP_ZEROTOUCH_BARCODE=1
-      - INTFTYPE=eth
-    volumes:
-      - ../../certs:/mnt/flash/certs:ro
+      - DB_SERVER_HOST=postgres-server
+      - POSTGRES_USER=zabbix
+      - POSTGRES_PASSWORD=zabbix
+      - POSTGRES_DB=zabbix
+    depends_on:
+      - postgres-server
     networks:
-      mgmt_net:
-        ipv4_address: 172.20.0.13
+      - mgmt_net
+
+  # 3. Zabbix Web Interface (접속 포트: 8081)
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:alpine-6.4-latest
+    container_name: zabbix-web
+    ports:
+      - "8081:8080"
+    environment:
+      - ZBX_SERVER_HOST=zabbix-server
+      - DB_SERVER_HOST=postgres-server
+      - POSTGRES_USER=zabbix
+      - POSTGRES_PASSWORD=zabbix
+      - POSTGRES_DB=zabbix
+      - PHP_TZ=Asia/Seoul
+    depends_on:
+      - postgres-server
+      - zabbix-server
+    networks:
+      - mgmt_net
+
+  # 4. Grafana (시각화 도구, 접속 포트: 3000)
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana_env/var/lib/grafana:/var/lib/grafana:rw
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - mgmt_net
 
 networks:
   mgmt_net:
+    # 기존 ceos-lab에서 만든 네트워크와 통신하기 위해 외부 네트워크를 사용하거나 
+    # 혹은 여기서 새로 정의합니다.
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/24
