@@ -67,6 +67,4 @@ services:
 
 networks:
   mgmt_net:
-    # 기존 ceos-lab에서 만든 네트워크와 통신하기 위해 외부 네트워크를 사용하거나 
-    # 혹은 여기서 새로 정의합니다.
-    driver: bridge
+    external: true  # 이미 ceos-lab에 의해 만들어진 mgmt_net을 사용하겠다는 뜻
