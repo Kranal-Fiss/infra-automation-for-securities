@@ -19,12 +19,20 @@ services:
     tmpfs:
       - /mnt/flash:rw,mode=777
     environment:
-      - MGMT_INTF=eth0        # 추가: eth0을 관리포트로 지정
+      # [핵심] 도커의 eth0 인터페이스를 EOS의 Management1 포트로 강제 매핑합니다.
+      - MGMT_INTF=eth0        
+      # [핵심] 가상 인터페이스 타입을 veth로 지정하여 AWS 커널과의 호환성을 높입니다.
+      - INTF_TYPE=veth        
+      # 부팅 시 하드웨어 인식 및 드라이버 설치 패치를 생략하지 않고 수행하도록 합니다. (0=수행)
+      - SKIP_FW_INSTALL=0     
+      # 인터페이스 생성 및 초기화 시퀀스를 활성화합니다.
       - ETBA=1
-      - SKIP_FW_INSTALL=1
+      # 해당 컨테이너가 cEOS 환경임을 명시합니다.
       - CEOS=1
       - container=docker
+      # 실행 플랫폼을 ceoslab으로 지정하여 가상화 최적화를 적용합니다.
       - EOS_PLATFORM=ceoslab
+      # CPU, RAM 등 할당된 모든 리소스를 EOS 커널이 인식하도록 합니다.
       - MAP_ALL_RESOURCES=1
     ports:
       - "8080:80"
@@ -52,9 +60,10 @@ services:
     tmpfs:
       - /mnt/flash:rw,mode=777
     environment:
-      - MGMT_INTF=eth0        # 추가
+      - MGMT_INTF=eth0
+      - INTF_TYPE=veth
+      - SKIP_FW_INSTALL=0
       - ETBA=1
-      - SKIP_FW_INSTALL=1
       - CEOS=1
       - container=docker
       - EOS_PLATFORM=ceoslab
@@ -85,9 +94,10 @@ services:
     tmpfs:
       - /mnt/flash:rw,mode=777
     environment:
-      - MGMT_INTF=eth0        # 추가
+      - MGMT_INTF=eth0
+      - INTF_TYPE=veth
+      - SKIP_FW_INSTALL=0
       - ETBA=1
-      - SKIP_FW_INSTALL=1
       - CEOS=1
       - container=docker
       - EOS_PLATFORM=ceoslab
