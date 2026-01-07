@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  ceos1:
+    image: ceosimage:latest
+    container_name: ceos1
+    privileged: true
+    shm_size: '2gb'
+    hostname: ceos1
+    ulimits:
+      memlock: -1
+    devices:
+      - "/dev/fuse:/dev/fuse"
+      - "/dev/net/tun:/dev/net/tun"
+    volumes:
+      - /lib/modules:/lib/modules:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - ../../certs:/mnt/flash/certs:ro
+    tmpfs:
+      - /mnt/flash:rw,mode=777
+    environment:
+      - INTF_TYPE=eth
+      - ETBA=1
+      - SKIP_FW_INSTALL=1
+      - CEOS=1
+      - container=docker
+      - EOS_PLATFORM=ceoslab
+      - MAP_ALL_RESOURCES=1
+    ports:
+      - "8080:80"
+      - "2221:22"
+    command: /sbin/init
+
+  ceos2:
+    image: ceosimage:latest
+    container_name: ceos2
+    privileged: true
+    shm_size: '2gb'
+    hostname: ceos2
+    ulimits:
+      memlock: -1
+    devices:
+      - "/dev/fuse:/dev/fuse"
+      - "/dev/net/tun:/dev/net/tun"
+    volumes:
+      - /lib/modules:/lib/modules:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - ../../certs:/mnt/flash/certs:ro
+    tmpfs:
+      - /mnt/flash:rw,mode=777
+    environment:
+      - INTF_TYPE=eth
+      - ETBA=1
+      - SKIP_FW_INSTALL=1
+      - CEOS=1
+      - container=docker
+      - EOS_PLATFORM=ceoslab
+      - MAP_ALL_RESOURCES=1
+    ports:
+      - "8082:80"
+      - "2222:22"
+    command: /sbin/init
+
+  ceos3:
+    image: ceosimage:latest
+    container_name: ceos3
+    privileged: true
+    shm_size: '2gb'
+    hostname: ceos3
+    ulimits:
+      memlock: -1
+    devices:
+      - "/dev/fuse:/dev/fuse"
+      - "/dev/net/tun:/dev/net/tun"
+    volumes:
+      - /lib/modules:/lib/modules:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - ../../certs:/mnt/flash/certs:ro
+    tmpfs:
+      - /mnt/flash:rw,mode=777
+    environment:
+      - INTF_TYPE=eth
+      - ETBA=1
+      - SKIP_FW_INSTALL=1
+      - CEOS=1
+      - container=docker
+      - EOS_PLATFORM=ceoslab
+      - MAP_ALL_RESOURCES=1
+    ports:
+      - "8083:80"
+      - "2223:22"
+    command: /sbin/init
