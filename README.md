@@ -50,8 +50,38 @@ CI/CD 파이프라인 통합: 코드 Push 시 Virtual Lab 환경에서 설정을
 Multicast 트래픽 모니터링: 시세 데이터 전송 안정성 확보를 위한 멀티캐스트 트래픽 정밀 분석 기능 추가.
 
 How to Start
-인증서 생성: certs/gen_certs.sh 실행 (TLS 환경 구성)
+본 프로젝트는 인프라 프로비저닝부터 설정 자동화까지 단계별로 구성되어 있습니다.
 
-환경 실행: docker-compose up -d
+1. 인프라 프로비저닝 (Terraform)
+AWS EC2(t3.medium, Ubuntu 20.04) 환경을 생성하고 필수 패키지(Docker, Ansible 등)를 자동 설치합니다.
 
-설정 배포: ansible-playbook -i ansible/inventory.ini ansible/site.yml
+Bash
+cd terraform
+terraform init
+terraform apply -auto-approve
+
+2. 네트워크 이미지 전송 (rsync)
+로컬에 보유한 Arista cEOS 이미지를 생성된 EC2 서버로 전송합니다. 안정적인 전송과 이어받기를 위해 rsync를 사용합니다.
+
+Bash
+# EC2_IP는 테라폼 출력값(output) 참조
+rsync -avzP -e "ssh -i your-key.pem" \
+    docker/cEOS64-lab-4.35.1F.tar.xz \
+    ubuntu@<EC2_IP>:/home/ubuntu/
+	
+3. 환경 초기화 및 컨테이너 실행
+서버 접속 후 이미지를 로드하고, 통신 보안을 위한 인증서를 생성한 뒤 실습 환경을 실행합니다.
+
+Bash
+# 이미지 로드 (EC2 내부)
+docker import /home/ubuntu/cEOS64-lab-4.35.1F.tar.xz ceosimage:latest
+
+# 인증서 생성 및 랩 실행
+bash certs/gen_certs.sh
+docker-compose -f docker/docker-compose.yml up -d
+
+4. 네트워크 설정 자동화 (Ansible)
+실행된 cEOS 장비들에 인터페이스, OSPF, 멀티캐스트 설정을 일괄 배포합니다.
+
+Bash
+ansible-playbook -i ansible/inventory.ini ansible/site.yml

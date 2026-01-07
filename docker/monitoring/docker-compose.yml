@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  ceos1:
+    image: cEOS64-lab-4.35.1F.tar.xz  # 책임님이 로컬에 올리신 이미지 명칭으로 수정
+    container_name: ceos1
+    privileged: true
+    environment:
+      - CEOS=1
+      - SKIP_ZEROTOUCH_BARRED=1
+      - INTFTYPE=eth
+    volumes:
+      - ./certs:/mnt/flash/certs:ro  # 생성한 인증서를 장비 내부로 마운트
+    ports:
+      - "50051:50051"  # gNMI 포트
+      - "8080:80"      # HTTP 관리 포트
+    networks:
+      mgmt_net:
+        ipv4_address: 172.20.0.11
+
+  ceos2:
+    image: ceosimage:latest
+    container_name: ceos2
+    privileged: true
+    environment:
+      - CEOS=1
+      - SKIP_ZEROTOUCH_BARRED=1
+      - INTFTYPE=eth
+    volumes:
+      - ./certs:/mnt/flash/certs:ro
+    networks:
+      mgmt_net:
+        ipv4_address: 172.20.0.12
+
+  ceos3:
+    image: ceosimage:latest
+    container_name: ceos3
+    privileged: true
+    environment:
+      - CEOS=1
+      - SKIP_ZEROTOUCH_BARRED=1
+      - INTFTYPE=eth
+    volumes:
+      - ./certs:/mnt/flash/certs:ro
+    networks:
+      mgmt_net:
+        ipv4_address: 172.20.0.13
+
+networks:
+  mgmt_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24

@@ -29,3 +29,26 @@ __pycache__/
 # 특정 대용량 파일 직접 지정
 ubuntu@54.180.90.108
 docker/images/
+
+.terraform/
+*.tfstate
+*.tfstate.backup
+terraform.tfvars
+
+# SSH 키 파일 (절대 올리면 안 됨)
+*.pem
+
+# 테라폼 상태 및 설정 파일
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# AWS 설정 및 환경 변수
+.aws/
+credentials
+.env
+
+# 테라폼 실행 파일 (바이너리는 용량이 크고 OS마다 다르므로 제외 권장)
+terraform.exe
+terraform
