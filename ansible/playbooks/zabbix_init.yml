@@ -1,0 +1,42 @@
+---
+- name: Zabbix Monitoring Automation
+  hosts: localhost
+  connection: local
+  vars:
+    # 1. Zabbix 서버 컨테이너 IP (아까 확인한 172.20.0.3 또는 0.4 등)
+    zabbix_url: "http://172.20.0.4/zabbix/api_jsonrpc.php"
+    # 2. 복사하신 API 토큰을 여기에 정확히 붙여넣으세요
+    zabbix_token: "4b10e9b73698b84cc0229cb4ca1774b5789c20af10a5dc0aa2feff2ca2f86700"
+
+    # 3. 등록할 cEOS 장비 리스트
+    target_devices:
+      - { name: "ceos1", ip: "172.20.0.11", vname: "Core-SW-01" }
+      - { name: "ceos2", ip: "172.20.0.12", vname: "Core-SW-02" }
+      - { name: "ceos3", ip: "172.20.0.13", vname: "Access-SW-01" }
+
+  tasks:
+    - name: Ensure Host Group 'Financial-NW' exists
+      community.zabbix.zabbix_group:
+        server_url: "{{ zabbix_url }}"
+        login_token: "{{ zabbix_token }}"
+        host_groups: "Financial-NW-Group"
+        state: present
+
+    - name: Create or Update cEOS Hosts
+      community.zabbix.zabbix_host:
+        server_url: "{{ zabbix_url }}"
+        login_token: "{{ zabbix_token }}"
+        host_name: "{{ item.name }}"
+        visible_name: "{{ item.vname }}"
+        host_groups: "Financial-NW-Group"
+        link_templates: 
+          - "ICMP Ping"
+        status: enabled
+        interfaces:
+          - type: 1  # Agent
+            main: 1
+            useip: 1
+            ip: "{{ item.ip }}"
+            dns: ""
+            port: "10050"
+      loop: "{{ target_devices }}"

@@ -52,3 +52,6 @@ credentials
 # 테라폼 실행 파일 (바이너리는 용량이 크고 OS마다 다르므로 제외 권장)
 terraform.exe
 terraform
+
+# .gitignore 파일 끝에 추가
+echo "images/" >> .gitignore
