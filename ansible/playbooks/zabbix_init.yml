@@ -4,31 +4,21 @@
   connection: local
   gather_facts: false
 
-  # 1. 공통 접속 변수 설정 (중앙 관리)
   vars:
-    ansible_zabbix_url: "http://localhost/api_jsonrpc.php"
-    ansible_zabbix_user: "Admin"
-    ansible_zabbix_password: "zabbix"
-    ansible_zabbix_http_user: "Admin"
-    ansible_zabbix_http_password: "zabbix"
-    ansible_zabbix_validate_certs: false
+    # 1. 공통 변수 정의 (다른 태스크에서도 재사용 가능)
+    zabbix_api_url: "http://localhost/api_jsonrpc.php"
+    zabbix_user: "Admin"
+    zabbix_pass: "zabbix"
 
   tasks:
-    # 2. 호스트 그룹 생성
     - name: Ensure Host Group 'Financial-NW-Group' exists
       community.zabbix.zabbix_group:
+        # 2. 에러에서 요구한 파라미터 이름에 변수 매핑
+        http_login_url: "{{ zabbix_api_url }}"
+        http_login_user: "{{ zabbix_user }}"
+        http_login_password: "{{ zabbix_pass }}"
         host_groups: "Financial-NW-Group"
         state: present
-
-    # 3. (옵션) 필요한 경우 템플릿 연결이나 호스트 추가 태스크를 여기에 작성
-    - name: Example Task - Create a Dummy Host
-      community.zabbix.zabbix_host:
-        host_name: "Securities-Core-Router"
-        visible_name: "Core-Router-01"
-        description: "Securities infrastructure core router"
-        host_groups:
-          - "Financial-NW-Group"
-        link_templates:
-          - "Generic by SNMP"
-        status: enabled
-        state: present
+      # 3. socket_path 에러 방지를 위해 로컬 실행 강제
+      vars:
+        ansible_connection: local
