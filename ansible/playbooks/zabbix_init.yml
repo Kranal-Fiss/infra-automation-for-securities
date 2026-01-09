@@ -1,20 +1,42 @@
----
-- name: Zabbix Monitoring Automation
+- name: Zabbix API Auth and Create Group
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
-    # 컬렉션 표준 변수 (이걸 설정하면 모듈 내부 파라미터는 생략 가능합니다)
-    ansible_zabbix_url: "http://localhost/api_jsonrpc.php"
-    ansible_zabbix_user: "Admin"
-    ansible_zabbix_password: "zabbix"
-    ansible_zabbix_http_user: "Admin"
-    ansible_zabbix_http_password: "zabbix"
-    ansible_zabbix_validate_certs: false
+    zabbix_url: "http://localhost/api_jsonrpc.php"
+    zabbix_user: "Admin"
+    zabbix_pass: "zabbix"
 
   tasks:
-    - name: Ensure Host Group 'Financial-NW-Group' exists
-      community.zabbix.zabbix_group:
-        host_groups: "Financial-NW-Group"
-        state: present
+    - name: Get Auth Token
+      uri:
+        url: "{{ zabbix_url }}"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "user.login"
+          params:
+            username: "{{ zabbix_user }}"
+            password: "{{ zabbix_pass }}"
+          id: 1
+          auth: null
+      register: auth_response
+
+    - name: Create Host Group via API
+      uri:
+        url: "{{ zabbix_url }}"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "hostgroup.create"
+          params:
+            name: "Financial-NW-Group"
+          auth: "{{ auth_response.json.result }}"
+          id: 2
+      register: group_create_response
+      failed_when: 
+        - group_create_response.json.error is defined 
+        - "'already exists' not in group_create_response.json.error.data"
