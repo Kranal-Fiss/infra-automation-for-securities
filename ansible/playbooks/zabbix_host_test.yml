@@ -1,0 +1,78 @@
+---
+- name: Zabbix Host Registration Test
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    zabbix_url: "http://localhost:8081/api_jsonrpc.php"
+    zabbix_user: "Admin"
+    zabbix_pass: "zabbix"
+    target_group_name: "Financial-NW-Group"
+    new_host_name: "Test-Server-01"
+    new_host_ip: "10.10.10.100"
+
+  tasks:
+    # 1. API 인증 토큰 받기
+    - name: Get Auth Token
+      uri:
+        url: "{{ zabbix_url }}"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "user.login"
+          params:
+            username: "{{ zabbix_user }}"
+            password: "{{ zabbix_pass }}"
+          id: 1
+          auth: null
+      register: auth_response
+
+    # 2. 기존에 만든 그룹의 ID 조회 (이름으로 ID 찾기)
+    - name: Get Group ID for {{ target_group_name }}
+      uri:
+        url: "{{ zabbix_url }}"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "hostgroup.get"
+          params:
+            filter:
+              name: 
+                - "{{ target_group_name }}"
+          auth: "{{ auth_response.json.result }}"
+          id: 2
+      register: group_info
+
+    # 3. 조회한 ID를 사용하여 호스트 등록
+    - name: Register Test Host
+      uri:
+        url: "{{ zabbix_url }}"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "host.create"
+          params:
+            host: "{{ new_host_name }}"
+            interfaces:
+              - type: 1
+                main: 1
+                useip: 1
+                ip: "{{ new_host_ip }}"
+                dns: ""
+                port: "10050"
+            groups:
+              - groupid: "{{ group_info.json.result[0].groupid }}"
+          auth: "{{ auth_response.json.result }}"
+          id: 3
+      register: host_create_result
+      failed_when: 
+        - host_create_result.json.error is defined 
+        - "'already exists' not in host_create_result.json.error.data"
+
+    - name: Show Result
+      debug:
+        msg: "Host registration process finished for {{ new_host_name }}"
