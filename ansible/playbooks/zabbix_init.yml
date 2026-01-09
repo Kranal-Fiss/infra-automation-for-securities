@@ -3,14 +3,32 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  
+
+  # 1. 공통 접속 변수 설정 (중앙 관리)
+  vars:
+    ansible_zabbix_url: "http://localhost/api_jsonrpc.php"
+    ansible_zabbix_user: "Admin"
+    ansible_zabbix_password: "zabbix"
+    ansible_zabbix_http_user: "Admin"
+    ansible_zabbix_http_password: "zabbix"
+    ansible_zabbix_validate_certs: false
+
   tasks:
-    - name: Ensure Host Group exists
+    # 2. 호스트 그룹 생성
+    - name: Ensure Host Group 'Financial-NW-Group' exists
       community.zabbix.zabbix_group:
-        http_login_user: "Admin"      # Zabbix 기본 계정
-        http_login_password: "zabbix" # Zabbix 기본 비번
-        # Docker Compose에서 포트 80을 매핑했으므로 localhost로 접근 가능
-        server_url: "http://localhost/api_jsonrpc.php" 
         host_groups: "Financial-NW-Group"
         state: present
-      delegate_to: localhost
+
+    # 3. (옵션) 필요한 경우 템플릿 연결이나 호스트 추가 태스크를 여기에 작성
+    - name: Example Task - Create a Dummy Host
+      community.zabbix.zabbix_host:
+        host_name: "Securities-Core-Router"
+        visible_name: "Core-Router-01"
+        description: "Securities infrastructure core router"
+        host_groups:
+          - "Financial-NW-Group"
+        link_templates:
+          - "Generic by SNMP"
+        status: enabled
+        state: present
