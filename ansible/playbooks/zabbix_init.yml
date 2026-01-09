@@ -1,10 +1,12 @@
+---
 - name: Zabbix API Auth and Create Group
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
-    zabbix_url: "http://localhost/api_jsonrpc.php"
+    # 8081 포트 사용 (기억하겠습니다!)
+    zabbix_url: "http://localhost:8081/api_jsonrpc.php"
     zabbix_user: "Admin"
     zabbix_pass: "zabbix"
 
