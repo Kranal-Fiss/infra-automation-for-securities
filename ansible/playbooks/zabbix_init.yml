@@ -1,57 +1,16 @@
-version: '3.8'
-
-services:
-  # Zabbix 데이터베이스
-  zabbix-db:
-    image: mysql:8.0
-    container_name: zabbix-db
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_bin
-    environment:
-      - MYSQL_DATABASE=zabbix
-      - MYSQL_USER=zabbix
-      - MYSQL_PASSWORD=zabbix_pwd
-      - MYSQL_ROOT_PASSWORD=root_pwd
-    volumes:
-      - zabbix-db-data:/var/lib/mysql
-    networks:
-      - zabbix-net
-
-  # Zabbix 서버
-  zabbix-server:
-    image: zabbix/zabbix-server-mysql:6.0-alpine-latest
-    container_name: zabbix-server
-    ports:
-      - "10051:10051"
-    environment:
-      - DB_SERVER_HOST=zabbix-db
-      - MYSQL_DATABASE=zabbix
-      - MYSQL_USER=zabbix
-      - MYSQL_PASSWORD=zabbix_pwd
-    depends_on:
-      - zabbix-db
-    networks:
-      - zabbix-net
-
-  # Zabbix 웹 인터페이스 (Ansible이 접속할 대상)
-  zabbix-web:
-    image: zabbix/zabbix-web-apache-mysql:6.0-alpine-latest
-    container_name: zabbix-web
-    ports:
-      - "80:8080"
-    environment:
-      - DB_SERVER_HOST=zabbix-db
-      - MYSQL_DATABASE=zabbix
-      - MYSQL_USER=zabbix
-      - MYSQL_PASSWORD=zabbix_pwd
-      - ZBX_SERVER_HOST=zabbix-server
-    depends_on:
-      - zabbix-server
-    networks:
-      - zabbix-net
-
-volumes:
-  zabbix-db-data:
-
-networks:
-  zabbix-net:
-    driver: bridge
+---
+- name: Zabbix Monitoring Automation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  
+  tasks:
+    - name: Ensure Host Group exists
+      community.zabbix.zabbix_group:
+        http_login_user: "Admin"      # Zabbix 기본 계정
+        http_login_password: "zabbix" # Zabbix 기본 비번
+        # Docker Compose에서 포트 80을 매핑했으므로 localhost로 접근 가능
+        server_url: "http://localhost/api_jsonrpc.php" 
+        host_groups: "Financial-NW-Group"
+        state: present
+      delegate_to: localhost
