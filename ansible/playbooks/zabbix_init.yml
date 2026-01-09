@@ -5,20 +5,16 @@
   gather_facts: false
 
   vars:
-    # 1. 공통 변수 정의 (다른 태스크에서도 재사용 가능)
-    zabbix_api_url: "http://localhost/api_jsonrpc.php"
-    zabbix_user: "Admin"
-    zabbix_pass: "zabbix"
+    # 컬렉션 표준 변수 (이걸 설정하면 모듈 내부 파라미터는 생략 가능합니다)
+    ansible_zabbix_url: "http://localhost/api_jsonrpc.php"
+    ansible_zabbix_user: "Admin"
+    ansible_zabbix_password: "zabbix"
+    ansible_zabbix_http_user: "Admin"
+    ansible_zabbix_http_password: "zabbix"
+    ansible_zabbix_validate_certs: false
 
   tasks:
     - name: Ensure Host Group 'Financial-NW-Group' exists
       community.zabbix.zabbix_group:
-        # 2. 에러에서 요구한 파라미터 이름에 변수 매핑
-        http_login_url: "{{ zabbix_api_url }}"
-        http_login_user: "{{ zabbix_user }}"
-        http_login_password: "{{ zabbix_pass }}"
         host_groups: "Financial-NW-Group"
         state: present
-      # 3. socket_path 에러 방지를 위해 로컬 실행 강제
-      vars:
-        ansible_connection: local
