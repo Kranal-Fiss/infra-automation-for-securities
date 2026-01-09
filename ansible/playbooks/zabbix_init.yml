@@ -1,45 +1,57 @@
----
-- name: Zabbix Monitoring Automation
-  hosts: localhost
-  connection: local
-  vars:
-    # 1. server_url 대신 zabbix_url로 사용하고 아래 tasks에서 매칭
-    ansible_zabbix_url: "http://172.20.0.4/zabbix/api_jsonrpc.php"
-    # 2. 낮은 버전에서는 login_token 대신 user/password를 쓰는 것이 가장 안정적입니다
-    ansible_zabbix_user: "Admin"
-    ansible_zabbix_pass: "zabbix"
+version: '3.8'
 
-    target_devices:
-      - { name: "ceos1", ip: "172.20.0.11", vname: "Core-SW-01" }
-      - { name: "ceos2", ip: "172.20.0.12", vname: "Core-SW-02" }
-      - { name: "ceos3", ip: "172.20.0.13", vname: "Access-SW-01" }
+services:
+  # Zabbix 데이터베이스
+  zabbix-db:
+    image: mysql:8.0
+    container_name: zabbix-db
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_bin
+    environment:
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=zabbix
+      - MYSQL_PASSWORD=zabbix_pwd
+      - MYSQL_ROOT_PASSWORD=root_pwd
+    volumes:
+      - zabbix-db-data:/var/lib/mysql
+    networks:
+      - zabbix-net
 
-  tasks:
-    - name: Ensure Host Group 'Financial-NW' exists
-      community.zabbix.zabbix_group:
-        # 파라미터 이름을 낮은 버전 호환용으로 변경
-        http_login_user: "{{ ansible_zabbix_user }}"
-        http_login_password: "{{ ansible_zabbix_pass }}"
-        server_url: "{{ ansible_zabbix_url }}"
-        host_groups: "Financial-NW-Group"
-        state: present
+  # Zabbix 서버
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:6.0-alpine-latest
+    container_name: zabbix-server
+    ports:
+      - "10051:10051"
+    environment:
+      - DB_SERVER_HOST=zabbix-db
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=zabbix
+      - MYSQL_PASSWORD=zabbix_pwd
+    depends_on:
+      - zabbix-db
+    networks:
+      - zabbix-net
 
-    - name: Create or Update cEOS Hosts
-      community.zabbix.zabbix_host:
-        http_login_user: "{{ ansible_zabbix_user }}"
-        http_login_password: "{{ ansible_zabbix_pass }}"
-        server_url: "{{ ansible_zabbix_url }}"
-        host_name: "{{ item.name }}"
-        visible_name: "{{ item.vname }}"
-        host_groups: "Financial-NW-Group"
-        link_templates: 
-          - "ICMP Ping"
-        status: enabled
-        interfaces:
-          - type: 1
-            main: 1
-            useip: 1
-            ip: "{{ item.ip }}"
-            dns: ""
-            port: "10050"
-      loop: "{{ target_devices }}"
+  # Zabbix 웹 인터페이스 (Ansible이 접속할 대상)
+  zabbix-web:
+    image: zabbix/zabbix-web-apache-mysql:6.0-alpine-latest
+    container_name: zabbix-web
+    ports:
+      - "80:8080"
+    environment:
+      - DB_SERVER_HOST=zabbix-db
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=zabbix
+      - MYSQL_PASSWORD=zabbix_pwd
+      - ZBX_SERVER_HOST=zabbix-server
+    depends_on:
+      - zabbix-server
+    networks:
+      - zabbix-net
+
+volumes:
+  zabbix-db-data:
+
+networks:
+  zabbix-net:
+    driver: bridge

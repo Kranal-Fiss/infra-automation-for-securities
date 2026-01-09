@@ -53,5 +53,5 @@ credentials
 terraform.exe
 terraform
 
-# .gitignore 파일 끝에 추가
-echo "images/" >> .gitignore
+
+images/
