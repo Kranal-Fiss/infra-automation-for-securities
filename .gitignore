@@ -53,5 +53,8 @@ credentials
 terraform.exe
 terraform
 
-
+#images 폴더 제외
 images/
+
+# Containerlab 실행 시 생성되는 폴더 무시
+clab-*/
