@@ -1,0 +1,11 @@
+name: ceos-project
+topology:
+  nodes:
+    ceos1:
+      kind: ceos
+      image: ceos-lab:4.35.1F
+    ceos2:
+      kind: ceos
+      image: ceos-lab:4.35.1F
+  links:
+    - endpoints: ["ceos1:eth1", "ceos2:eth1"] # 이게 '진짜' 랜선입니다!
