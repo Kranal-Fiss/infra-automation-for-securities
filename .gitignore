@@ -4,6 +4,7 @@
 *.vault_pass
 *.pem
 *.key
+*.ppk
 credentials.yml
 secrets.yml
 
