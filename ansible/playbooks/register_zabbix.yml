@@ -1,13 +1,15 @@
 ---
-- name: Register Arista Switches to Zabbix (Direct API)
+- name: Register Arista Switches to Zabbix (Robust API)
   hosts: arista
   connection: local
   gather_facts: no
-  # inventory.ini와 group_vars는 자동 로드됨
+  # inventory.ini와 group_vars 자동 로드
 
   tasks:
-    # 1. 호스트 그룹 ID 조회 (없으면 생성하기 위해 조회)
-    - name: Get Host Group ID
+    # =========================================================
+    # 1단계: 호스트 그룹 ID 확보 (무조건 확실한 방법)
+    # =========================================================
+    - name: Check if Host Group exists
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -24,10 +26,10 @@
                 - "{{ zabbix_host_group }}"
           auth: "{{ zabbix_token }}"
           id: 1
-      register: group_info
+      register: first_check
+      run_once: true # 한 번만 실행
 
-    # 2. 호스트 그룹 생성 (조회 결과가 없을 때만 실행)
-    - name: Create Host Group if not exists
+    - name: Create Host Group (if missing)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -41,15 +43,37 @@
             name: "{{ zabbix_host_group }}"
           auth: "{{ zabbix_token }}"
           id: 2
-      when: group_info.json.result | length == 0
-      register: create_group_result
+      when: first_check.json.result | length == 0
+      run_once: true
 
-    # 3. 그룹 ID 확정 (이미 있었든, 방금 만들었든 ID 추출)
-    - name: Set Group ID Variable
+    # [핵심] 만들었든 있었든, 다시 조회해서 ID를 확정함 (에러 원천 차단)
+    - name: Get Final Group ID
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        headers:
+          Content-Type: application/json-rpc
+        body:
+          jsonrpc: "2.0"
+          method: "hostgroup.get"
+          params:
+            output: "extend"
+            filter:
+              name:
+                - "{{ zabbix_host_group }}"
+          auth: "{{ zabbix_token }}"
+          id: 3
+      register: final_group_info
+      run_once: true
+
+    - name: Set Group ID Fact (Broadcast to all hosts)
       set_fact:
-        target_group_id: "{{ (group_info.json.result | first).groupid if group_info.json.result else create_group_result.json.result.groupids[0] }}"
+        target_group_id: "{{ (final_group_info.json.result | first).groupid }}"
 
-    # 4. 템플릿 ID 조회 (Arista 템플릿 찾기)
+    # =========================================================
+    # 2단계: 템플릿 ID 조회 (한 번만 실행)
+    # =========================================================
     - name: Get Template ID
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
@@ -64,10 +88,13 @@
               host:
                 - "{{ zabbix_template }}"
           auth: "{{ zabbix_token }}"
-          id: 3
+          id: 4
       register: template_info
+      run_once: true
 
-    # 5. 호스트 존재 여부 확인 (중복 등록 방지)
+    # =========================================================
+    # 3단계: 개별 호스트 등록 (각 장비별 실행)
+    # =========================================================
     - name: Check if Host exists
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
@@ -81,10 +108,9 @@
               host:
                 - "{{ inventory_hostname }}"
           auth: "{{ zabbix_token }}"
-          id: 4
+          id: 5
       register: host_info
 
-    # 6. 호스트 생성 (없을 경우에만 실행)
     - name: Create Host
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
@@ -107,15 +133,15 @@
                   version: 3
                   securityname: "{{ snmp_user }}"
                   securitylevel: 3  # authPriv
-                  authprotocol: 1   # 0:MD5, 1:SHA
+                  authprotocol: 1   # SHA
                   authpassphrase: "{{ snmp_auth_pass }}"
-                  privprotocol: 1   # 0:DES, 1:AES
+                  privprotocol: 1   # AES
                   privpassphrase: "{{ snmp_priv_pass }}"
             groups:
               - groupid: "{{ target_group_id }}"
             templates:
               - templateid: "{{ template_info.json.result[0].templateid }}"
           auth: "{{ zabbix_token }}"
-          id: 5
+          id: 6
       when: host_info.json.result | length == 0
       changed_when: true
