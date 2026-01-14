@@ -4,14 +4,15 @@
   gather_facts: no
   connection: network_cli
   
-  # [수정됨] 변수는 vars 밑으로 이동해야 합니다
   vars:
     ansible_network_os: arista.eos.eos
-    # 접속 계정 정보 (inventory나 group_vars에 있다면 주석 처리 가능)
     ansible_user: admin
-    ansible_password: admin123
+    ansible_password: admin
     ansible_become: yes
     ansible_become_method: enable
+    # [핵심 1] SSH 키 확인 무시 (Paramiko용)
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ansible_paramiko_host_key_checking: False 
 
   tasks:
     - name: Configure SNMP User (AuthPriv)
@@ -19,3 +20,5 @@
         lines:
           - snmp-server user V3USER V3GROUP v3 auth sha admin123 priv aes admin123
         save_when: modified
+      # [핵심 2] 요청하신 속도 조절
+      throttle: 1
