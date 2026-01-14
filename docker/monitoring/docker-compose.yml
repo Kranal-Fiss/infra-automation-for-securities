@@ -1,10 +1,11 @@
 version: '3.8'
 
 services:
-  # 1. PostgreSQL Database (Zabbix 데이터 저장소)
+  # 1. PostgreSQL Database (금융권 표준 데이터 보존)
   postgres-server:
     image: postgres:15-alpine
     container_name: postgres-server
+    restart: always
     volumes:
       - ./zbx_env/var/lib/postgresql/data:/var/lib/postgresql/data:rw
     environment:
@@ -14,29 +15,33 @@ services:
     networks:
       - mgmt_net
 
-  # 2. Zabbix Server
+  # 2. Zabbix Server (SNMP v3 및 자동화 엔진)
   zabbix-server:
     image: zabbix/zabbix-server-pgsql:alpine-6.4-latest
     container_name: zabbix-server
+    restart: always
     ports:
       - "10051:10051"
     volumes:
       - ./zbx_env/usr/lib/zabbix/alertscripts:/usr/lib/zabbix/alertscripts:ro
       - ./zbx_env/usr/lib/zabbix/externalscripts:/usr/lib/zabbix/externalscripts:ro
+      - ./zbx_env/var/lib/zabbix/snmptraps:/var/lib/zabbix/snmptraps:rw
     environment:
       - DB_SERVER_HOST=postgres-server
       - POSTGRES_USER=zabbix
       - POSTGRES_PASSWORD=zabbix
       - POSTGRES_DB=zabbix
+      - ZBX_ENABLE_SNMP_TRAPS=true  # SNMP 트랩 활성화
     depends_on:
       - postgres-server
     networks:
       - mgmt_net
 
-  # 3. Zabbix Web Interface (접속 포트: 8081)
+  # 3. Zabbix Web Interface (Nginx 기반 보안 강화)
   zabbix-web:
     image: zabbix/zabbix-web-nginx-pgsql:alpine-6.4-latest
     container_name: zabbix-web
+    restart: always
     ports:
       - "8081:8080"
     environment:
@@ -46,25 +51,40 @@ services:
       - POSTGRES_PASSWORD=zabbix
       - POSTGRES_DB=zabbix
       - PHP_TZ=Asia/Seoul
+      - ZBX_SERVER_NAME=Next-Securities-NMS
     depends_on:
       - postgres-server
       - zabbix-server
     networks:
       - mgmt_net
 
-  # 4. Grafana (시각화 도구, 접속 포트: 3000)
+  # 4. SNMP Traps Receiver (실시간 장애 감지용)
+  zabbix-snmptraps:
+    image: zabbix/zabbix-snmptraps:alpine-6.4-latest
+    container_name: zabbix-snmptraps
+    restart: always
+    ports:
+      - "162:1162/udp"
+    volumes:
+      - ./zbx_env/var/lib/zabbix/snmptraps:/var/lib/zabbix/snmptraps:rw
+    networks:
+      - mgmt_net
+
+  # 5. Grafana (넥스트증권 통합 대시보드)
   grafana:
     image: grafana/grafana-oss:latest
     container_name: grafana
+    restart: always
     ports:
       - "3000:3000"
     volumes:
       - ./grafana_env/var/lib/grafana:/var/lib/grafana:rw
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin  # 초기 비번
+      - GF_INSTALL_PLUGINS=alexanderzobnin-zabbix-app  # Zabbix 플러그인 자동 설치
     networks:
       - mgmt_net
 
 networks:
   mgmt_net:
-    external: true  # 이미 ceos-lab에 의해 만들어진 mgmt_net을 사용하겠다는 뜻
+    external: true  # Containerlab의 네트워크를 그대로 활용
