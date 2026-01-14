@@ -3,11 +3,19 @@
   hosts: arista
   gather_facts: no
   connection: network_cli
-  ansible_network_os: arista.eos.eos
   
+  # [수정됨] 변수는 vars 밑으로 이동해야 합니다
+  vars:
+    ansible_network_os: arista.eos.eos
+    # 접속 계정 정보 (inventory나 group_vars에 있다면 주석 처리 가능)
+    ansible_user: admin
+    ansible_password: admin123
+    ansible_become: yes
+    ansible_become_method: enable
+
   tasks:
     - name: Configure SNMP User (AuthPriv)
       arista.eos.eos_config:
         lines:
           - snmp-server user V3USER V3GROUP v3 auth sha admin123 priv aes admin123
-        save_when: modified # 변경사항이 있으면 저장(write memory)까지 자동 수행
+        save_when: modified
