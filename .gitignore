@@ -59,3 +59,9 @@ images/
 
 # Containerlab 실행 시 생성되는 폴더 무시
 clab-*/
+
+# Python 가상 환경 무시
+venv/
+.env
+__pycache__/
+*.pyc
