@@ -1,0 +1,38 @@
+name: ceos-triangle
+
+topology:
+  nodes:
+    ceos1:
+      kind: ceos
+      image: ceos-lab:4.35.1F
+      mgmt-ipv4: 172.20.20.11
+      startup-config: configs/ceos1.cfg
+      env:
+        INTFTYPE: eth
+        ETBA: 1
+        SKIP_REBOOT: 1
+
+    ceos2:
+      kind: ceos
+      image: ceos-lab:4.35.1F
+      mgmt-ipv4: 172.20.20.12
+      startup-config: configs/ceos2.cfg
+      env:
+        INTFTYPE: eth
+        ETBA: 1
+        SKIP_REBOOT: 1
+
+    ceos3:
+      kind: ceos
+      image: ceos-lab:4.35.1F
+      mgmt-ipv4: 172.20.20.13
+      startup-config: configs/ceos3.cfg
+      env:
+        INTFTYPE: eth
+        ETBA: 1
+        SKIP_REBOOT: 1
+
+  links:
+    - endpoints: ["ceos1:eth1", "ceos2:eth1"]
+    - endpoints: ["ceos2:eth2", "ceos3:eth1"]
+    - endpoints: ["ceos3:eth2", "ceos1:eth2"]
