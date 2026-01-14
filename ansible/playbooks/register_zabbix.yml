@@ -145,3 +145,4 @@
           id: 6
       when: host_info.json.result | length == 0
       changed_when: true
+      
