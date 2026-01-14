@@ -10,9 +10,12 @@
     ansible_password: admin
     ansible_become: yes
     ansible_become_method: enable
-    # [핵심 1] SSH 키 확인 무시 (Paramiko용)
+    
+    # [핵심] Paramiko 대신 설치한 Pylibssh를 강제로 사용
+    ansible_network_cli_ssh_type: libssh
+    
+    # SSH 키 확인 무시 (표준 설정)
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-    ansible_paramiko_host_key_checking: False 
 
   tasks:
     - name: Configure SNMP User (AuthPriv)
@@ -20,5 +23,4 @@
         lines:
           - snmp-server user V3USER V3GROUP v3 auth sha admin123 priv aes admin123
         save_when: modified
-      # [핵심 2] 요청하신 속도 조절
       throttle: 1
