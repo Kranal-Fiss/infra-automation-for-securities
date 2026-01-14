@@ -1,15 +1,14 @@
 ---
-- name: Register Arista Switches to Zabbix (Robust API)
+- name: Register Arista Switches to Zabbix (Robust API & Error Check)
   hosts: arista
   connection: local
   gather_facts: no
-  # inventory.ini와 group_vars 자동 로드
 
   tasks:
-    # =========================================================
-    # 1단계: 호스트 그룹 ID 확보 (무조건 확실한 방법)
-    # =========================================================
-    - name: Check if Host Group exists
+    # ---------------------------------------------------------
+    # 1. 호스트 그룹 처리
+    # ---------------------------------------------------------
+    - name: Get Host Group ID
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -26,8 +25,8 @@
                 - "{{ zabbix_host_group }}"
           auth: "{{ zabbix_token }}"
           id: 1
-      register: first_check
-      run_once: true # 한 번만 실행
+      register: group_info
+      run_once: true
 
     - name: Create Host Group (if missing)
       ansible.builtin.uri:
@@ -43,10 +42,11 @@
             name: "{{ zabbix_host_group }}"
           auth: "{{ zabbix_token }}"
           id: 2
-      when: first_check.json.result | length == 0
+      when: group_info.json.result | length == 0
+      register: create_group_resp
+      failed_when: "'error' in create_group_resp.json" # 에러 체크 추가
       run_once: true
 
-    # [핵심] 만들었든 있었든, 다시 조회해서 ID를 확정함 (에러 원천 차단)
     - name: Get Final Group ID
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
@@ -67,13 +67,13 @@
       register: final_group_info
       run_once: true
 
-    - name: Set Group ID Fact (Broadcast to all hosts)
+    - name: Set Group ID Fact
       set_fact:
         target_group_id: "{{ (final_group_info.json.result | first).groupid }}"
 
-    # =========================================================
-    # 2단계: 템플릿 ID 조회 (한 번만 실행)
-    # =========================================================
+    # ---------------------------------------------------------
+    # 2. 템플릿 ID 처리
+    # ---------------------------------------------------------
     - name: Get Template ID
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
@@ -90,11 +90,12 @@
           auth: "{{ zabbix_token }}"
           id: 4
       register: template_info
+      failed_when: "'error' in template_info.json"
       run_once: true
 
-    # =========================================================
-    # 3단계: 개별 호스트 등록 (각 장비별 실행)
-    # =========================================================
+    # ---------------------------------------------------------
+    # 3. 호스트 등록 (수정됨)
+    # ---------------------------------------------------------
     - name: Check if Host exists
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
@@ -132,7 +133,7 @@
                 details:
                   version: 3
                   securityname: "{{ snmp_user }}"
-                  securitylevel: 3  # authPriv
+                  securitylevel: 2  # [수정] 3->2 (authPriv)
                   authprotocol: 1   # SHA
                   authpassphrase: "{{ snmp_auth_pass }}"
                   privprotocol: 1   # AES
@@ -144,5 +145,6 @@
           auth: "{{ zabbix_token }}"
           id: 6
       when: host_info.json.result | length == 0
+      register: create_host_resp
+      failed_when: "'error' in create_host_resp.json" # [핵심] API 에러 시 즉시 중단
       changed_when: true
-      
