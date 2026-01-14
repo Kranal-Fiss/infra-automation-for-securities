@@ -1,0 +1,53 @@
+---
+- name: Dynamic NTP Configuration
+  hosts: arista
+  gather_facts: no
+  connection: network_cli
+  
+  vars:
+    ansible_network_os: arista.eos.eos
+    ansible_user: admin
+    ansible_become: yes
+    ansible_become_method: enable
+    ansible_ssh_private_key_file: ~/.ssh/ansible_id_rsa
+    ansible_network_cli_ssh_type: libssh
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    
+    # 타임존 고정
+    timezone: "Asia/Seoul"
+
+  pre_tasks:
+    # [핵심] 제어 노드(Localhost)에서 스위치로 가는 '내 IP'를 역추적
+    - name: Detect Control Node IP (Dynamic)
+      ansible.builtin.shell: "ip route get {{ ansible_host }} | grep -oP 'src \\K\\S+'"
+      register: my_ip_check
+      delegate_to: localhost  # 이 작업은 제어 노드에서 실행
+      changed_when: false
+
+    - name: Set NTP Server Variable
+      set_fact:
+        ntp_server_ip: "{{ my_ip_check.stdout }}"
+      
+    - name: Debug NTP IP (확인용)
+      debug:
+        msg: "Detected Control Node IP: {{ ntp_server_ip }}"
+
+  tasks:
+    - name: Set Timezone
+      arista.eos.eos_config:
+        lines:
+          - "clock timezone {{ timezone }}"
+
+    - name: Configure NTP Server (Self IP)
+      arista.eos.eos_config:
+        lines:
+          - "ntp server {{ ntp_server_ip }}"  # 찾은 내 IP를 넣음
+        save_when: modified
+
+    - name: Verify NTP
+      arista.eos.eos_command:
+        commands: "show ntp status"
+      register: ntp_res
+
+    - debug:
+        msg: "{{ ntp_res.stdout_lines[0][0] }}"
