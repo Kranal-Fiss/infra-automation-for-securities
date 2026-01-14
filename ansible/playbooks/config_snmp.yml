@@ -1,0 +1,13 @@
+---
+- name: Configure SNMP Settings on Arista
+  hosts: arista
+  gather_facts: no
+  connection: network_cli
+  ansible_network_os: arista.eos.eos
+  
+  tasks:
+    - name: Configure SNMP User (AuthPriv)
+      arista.eos.eos_config:
+        lines:
+          - snmp-server user V3USER V3GROUP v3 auth sha admin123 priv aes admin123
+        save_when: modified # 변경사항이 있으면 저장(write memory)까지 자동 수행
