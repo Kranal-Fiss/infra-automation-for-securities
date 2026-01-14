@@ -1,5 +1,5 @@
 ---
-- name: Configure SNMP Settings on Arista
+- name: Configure SNMP Settings on Arista (Best Practice)
   hosts: arista
   gather_facts: no
   connection: network_cli
@@ -7,14 +7,16 @@
   vars:
     ansible_network_os: arista.eos.eos
     ansible_user: admin
-    ansible_password: admin
     ansible_become: yes
     ansible_become_method: enable
     
-    # [핵심] Paramiko 대신 설치한 Pylibssh를 강제로 사용
+    # [핵심 1] RSA 키 파일 사용
+    ansible_ssh_private_key_file: ~/.ssh/ansible_id_rsa
+    
+    # [핵심 2] Pylibssh 엔진 사용 (경고 없음, 고성능)
     ansible_network_cli_ssh_type: libssh
     
-    # SSH 키 확인 무시 (표준 설정)
+    # 호스트 키 확인 무시
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
   tasks:
@@ -23,4 +25,3 @@
         lines:
           - snmp-server user V3USER V3GROUP v3 auth sha admin123 priv aes admin123
         save_when: modified
-      throttle: 1
