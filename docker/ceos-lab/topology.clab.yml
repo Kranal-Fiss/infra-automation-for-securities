@@ -11,6 +11,9 @@ topology:
         INTFTYPE: eth
         ETBA: 1
         SKIP_REBOOT: 1
+      # [추가됨] 호스트의 공개키를 컨테이너의 authorized_keys로 마운트
+      binds:
+        - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
 
     ceos2:
       kind: ceos
@@ -21,6 +24,9 @@ topology:
         INTFTYPE: eth
         ETBA: 1
         SKIP_REBOOT: 1
+      # [추가됨]
+      binds:
+        - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
 
     ceos3:
       kind: ceos
@@ -31,6 +37,9 @@ topology:
         INTFTYPE: eth
         ETBA: 1
         SKIP_REBOOT: 1
+      # [추가됨]
+      binds:
+        - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
 
   links:
     - endpoints: ["ceos1:eth1", "ceos2:eth1"]
