@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  # 1. PostgreSQL Database (금융권 표준 데이터 보존)
+  # 1. PostgreSQL Database
   postgres-server:
     image: postgres:15-alpine
     container_name: postgres-server
@@ -13,9 +11,9 @@ services:
       - POSTGRES_PASSWORD=zabbix
       - POSTGRES_DB=zabbix
     networks:
-      - mgmt_net
+      - clab
 
-  # 2. Zabbix Server (SNMP v3 및 자동화 엔진)
+  # 2. Zabbix Server (SNMP Trap & Scripts)
   zabbix-server:
     image: zabbix/zabbix-server-pgsql:alpine-6.4-latest
     container_name: zabbix-server
@@ -31,13 +29,13 @@ services:
       - POSTGRES_USER=zabbix
       - POSTGRES_PASSWORD=zabbix
       - POSTGRES_DB=zabbix
-      - ZBX_ENABLE_SNMP_TRAPS=true  # SNMP 트랩 활성화
+      - ZBX_ENABLE_SNMP_TRAPS=true
     depends_on:
       - postgres-server
     networks:
-      - mgmt_net
+      - clab
 
-  # 3. Zabbix Web Interface (Nginx 기반 보안 강화)
+  # 3. Zabbix Web Interface
   zabbix-web:
     image: zabbix/zabbix-web-nginx-pgsql:alpine-6.4-latest
     container_name: zabbix-web
@@ -51,14 +49,13 @@ services:
       - POSTGRES_PASSWORD=zabbix
       - POSTGRES_DB=zabbix
       - PHP_TZ=Asia/Seoul
-      - ZBX_SERVER_NAME=Next-Securities-NMS
     depends_on:
       - postgres-server
       - zabbix-server
     networks:
-      - mgmt_net
+      - clab
 
-  # 4. SNMP Traps Receiver (실시간 장애 감지용)
+  # 4. SNMP Trap Receiver
   zabbix-snmptraps:
     image: zabbix/zabbix-snmptraps:alpine-6.4-latest
     container_name: zabbix-snmptraps
@@ -68,9 +65,9 @@ services:
     volumes:
       - ./zbx_env/var/lib/zabbix/snmptraps:/var/lib/zabbix/snmptraps:rw
     networks:
-      - mgmt_net
+      - clab
 
-  # 5. Grafana (넥스트증권 통합 대시보드)
+  # 5. Grafana
   grafana:
     image: grafana/grafana-oss:latest
     container_name: grafana
@@ -80,11 +77,11 @@ services:
     volumes:
       - ./grafana_env/var/lib/grafana:/var/lib/grafana:rw
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin  # 초기 비번
-      - GF_INSTALL_PLUGINS=alexanderzobnin-zabbix-app  # Zabbix 플러그인 자동 설치
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=alexanderzobnin-zabbix-app
     networks:
-      - mgmt_net
+      - clab
 
 networks:
-  mgmt_net:
-    external: true  # Containerlab의 네트워크를 그대로 활용
+  clab:
+    external: true  # 주의: 반드시 'clab' 네트워크가 먼저 존재해야 함
