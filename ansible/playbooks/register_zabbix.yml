@@ -1,0 +1,47 @@
+---
+- name: Register Arista Switches to Zabbix
+  hosts: arista
+  connection: local
+  gather_facts: no
+
+  tasks:
+    # 1. 호스트 그룹 생성
+    - name: Create Zabbix Host Group
+      community.zabbix.zabbix_group:
+        server_url: "{{ zabbix_url }}"
+        api_token: "{{ zabbix_token }}"
+        host_groups:
+          - "{{ zabbix_host_group }}"
+        state: present
+        validate_certs: no
+      run_once: true
+
+    # 2. 호스트(스위치) 등록
+    - name: Create or Update Zabbix Host
+      community.zabbix.zabbix_host:
+        server_url: "{{ zabbix_url }}"
+        api_token: "{{ zabbix_token }}"
+        host_name: "{{ inventory_hostname }}"
+        visible_name: "{{ inventory_hostname | upper }}"
+        host_groups:
+          - "{{ zabbix_host_group }}"
+        link_templates:
+          - "{{ zabbix_template }}"
+        status: enabled
+        interfaces:
+          - type: 2  # SNMP Interface
+            main: 1
+            useip: 1
+            ip: "{{ ansible_host }}"
+            dns: ""
+            port: 161
+            details:
+              version: 3
+              securityname: "{{ snmp_user }}"
+              securitylevel: "{{ snmp_security_level }}"
+              authprotocol: "{{ snmp_auth_protocol }}"
+              authpassphrase: "{{ snmp_auth_pass }}"
+              privprotocol: "{{ snmp_priv_protocol }}"
+              privpassphrase: "{{ snmp_priv_pass }}"
+        state: present
+        validate_certs: no

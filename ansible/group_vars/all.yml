@@ -1,0 +1,16 @@
+# Zabbix 접속 정보 (WSL IP 확인 필요, 실패 시 172.30.xx.xx 사용)
+zabbix_url: "http://127.0.0.1:8081"
+zabbix_token: "0f169ea2b3bce3dac0ed45199291b84e43b1a7900e0c4b4effb3e4d1a8f98c64"
+
+# Zabbix 호스트 그룹 및 템플릿
+zabbix_host_group: "NextSecurities_Network_Switches"
+zabbix_template: "Arista by SNMP"
+
+# [중요] ceos1.cfg 설정에 맞춘 SNMP v3 정보
+# snmp-server user V3USER V3GROUP v3 auth sha admin123 priv aes admin123
+snmp_user: "V3USER"          # config 파일의 유저명
+snmp_auth_pass: "admin123"   # config 파일의 auth sha 패스워드
+snmp_priv_pass: "admin123"   # config 파일의 priv aes 패스워드
+snmp_security_level: "authPriv"
+snmp_auth_protocol: "SHA"
+snmp_priv_protocol: "AES"
