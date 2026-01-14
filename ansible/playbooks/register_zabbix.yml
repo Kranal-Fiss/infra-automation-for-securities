@@ -1,47 +1,121 @@
 ---
-- name: Register Arista Switches to Zabbix
+- name: Register Arista Switches to Zabbix (Direct API)
   hosts: arista
   connection: local
   gather_facts: no
+  # inventory.ini와 group_vars는 자동 로드됨
 
   tasks:
-    # 1. 호스트 그룹 생성
-    - name: Create Zabbix Host Group
-      community.zabbix.zabbix_group:
-        server_url: "{{ zabbix_url }}"
-        api_token: "{{ zabbix_token }}"
-        host_groups:
-          - "{{ zabbix_host_group }}"
-        state: present
-        validate_certs: no
-      run_once: true
+    # 1. 호스트 그룹 ID 조회 (없으면 생성하기 위해 조회)
+    - name: Get Host Group ID
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        headers:
+          Content-Type: application/json-rpc
+        body:
+          jsonrpc: "2.0"
+          method: "hostgroup.get"
+          params:
+            output: "extend"
+            filter:
+              name:
+                - "{{ zabbix_host_group }}"
+          auth: "{{ zabbix_token }}"
+          id: 1
+      register: group_info
 
-    # 2. 호스트(스위치) 등록
-    - name: Create or Update Zabbix Host
-      community.zabbix.zabbix_host:
-        server_url: "{{ zabbix_url }}"
-        api_token: "{{ zabbix_token }}"
-        host_name: "{{ inventory_hostname }}"
-        visible_name: "{{ inventory_hostname | upper }}"
-        host_groups:
-          - "{{ zabbix_host_group }}"
-        link_templates:
-          - "{{ zabbix_template }}"
-        status: enabled
-        interfaces:
-          - type: 2  # SNMP Interface
-            main: 1
-            useip: 1
-            ip: "{{ ansible_host }}"
-            dns: ""
-            port: 161
-            details:
-              version: 3
-              securityname: "{{ snmp_user }}"
-              securitylevel: "{{ snmp_security_level }}"
-              authprotocol: "{{ snmp_auth_protocol }}"
-              authpassphrase: "{{ snmp_auth_pass }}"
-              privprotocol: "{{ snmp_priv_protocol }}"
-              privpassphrase: "{{ snmp_priv_pass }}"
-        state: present
-        validate_certs: no
+    # 2. 호스트 그룹 생성 (조회 결과가 없을 때만 실행)
+    - name: Create Host Group if not exists
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        headers:
+          Content-Type: application/json-rpc
+        body:
+          jsonrpc: "2.0"
+          method: "hostgroup.create"
+          params:
+            name: "{{ zabbix_host_group }}"
+          auth: "{{ zabbix_token }}"
+          id: 2
+      when: group_info.json.result | length == 0
+      register: create_group_result
+
+    # 3. 그룹 ID 확정 (이미 있었든, 방금 만들었든 ID 추출)
+    - name: Set Group ID Variable
+      set_fact:
+        target_group_id: "{{ (group_info.json.result | first).groupid if group_info.json.result else create_group_result.json.result.groupids[0] }}"
+
+    # 4. 템플릿 ID 조회 (Arista 템플릿 찾기)
+    - name: Get Template ID
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "template.get"
+          params:
+            output: "templateid"
+            filter:
+              host:
+                - "{{ zabbix_template }}"
+          auth: "{{ zabbix_token }}"
+          id: 3
+      register: template_info
+
+    # 5. 호스트 존재 여부 확인 (중복 등록 방지)
+    - name: Check if Host exists
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "host.get"
+          params:
+            filter:
+              host:
+                - "{{ inventory_hostname }}"
+          auth: "{{ zabbix_token }}"
+          id: 4
+      register: host_info
+
+    # 6. 호스트 생성 (없을 경우에만 실행)
+    - name: Create Host
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "host.create"
+          params:
+            host: "{{ inventory_hostname }}"
+            name: "{{ inventory_hostname | upper }}"
+            interfaces:
+              - type: 2  # SNMP
+                main: 1
+                useip: 1
+                ip: "{{ ansible_host }}"
+                dns: ""
+                port: "161"
+                details:
+                  version: 3
+                  securityname: "{{ snmp_user }}"
+                  securitylevel: 3  # authPriv
+                  authprotocol: 1   # 0:MD5, 1:SHA
+                  authpassphrase: "{{ snmp_auth_pass }}"
+                  privprotocol: 1   # 0:DES, 1:AES
+                  privpassphrase: "{{ snmp_priv_pass }}"
+            groups:
+              - groupid: "{{ target_group_id }}"
+            templates:
+              - templateid: "{{ template_info.json.result[0].templateid }}"
+          auth: "{{ zabbix_token }}"
+          id: 5
+      when: host_info.json.result | length == 0
+      changed_when: true
