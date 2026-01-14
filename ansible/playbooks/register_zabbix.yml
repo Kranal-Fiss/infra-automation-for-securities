@@ -1,7 +1,116 @@
-# ---------------------------------------------------------
-    # 3. 호스트 등록 (수정됨: DB 충돌 방지 추가)
+---
+- name: Register Arista Switches to Zabbix (Final Fix)
+  hosts: arista
+  connection: local
+  gather_facts: no
+
+  tasks:
     # ---------------------------------------------------------
-    # ... (Check if Host exists 태스크는 그대로 두세요) ...
+    # 1. 호스트 그룹 처리
+    # ---------------------------------------------------------
+    - name: Get Host Group ID
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        headers:
+          Content-Type: application/json-rpc
+        body:
+          jsonrpc: "2.0"
+          method: "hostgroup.get"
+          params:
+            output: "extend"
+            filter:
+              name:
+                - "{{ zabbix_host_group }}"
+          auth: "{{ zabbix_token }}"
+          id: 1
+      register: group_info
+      run_once: true
+
+    - name: Create Host Group (if missing)
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        headers:
+          Content-Type: application/json-rpc
+        body:
+          jsonrpc: "2.0"
+          method: "hostgroup.create"
+          params:
+            name: "{{ zabbix_host_group }}"
+          auth: "{{ zabbix_token }}"
+          id: 2
+      when: group_info.json.result | length == 0
+      register: create_group_resp
+      failed_when: "'error' in create_group_resp.json"
+      run_once: true
+
+    - name: Get Final Group ID
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        headers:
+          Content-Type: application/json-rpc
+        body:
+          jsonrpc: "2.0"
+          method: "hostgroup.get"
+          params:
+            output: "extend"
+            filter:
+              name:
+                - "{{ zabbix_host_group }}"
+          auth: "{{ zabbix_token }}"
+          id: 3
+      register: final_group_info
+      run_once: true
+
+    - name: Set Group ID Fact
+      set_fact:
+        target_group_id: "{{ (final_group_info.json.result | first).groupid }}"
+
+    # ---------------------------------------------------------
+    # 2. 템플릿 ID 처리
+    # ---------------------------------------------------------
+    - name: Get Template ID
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "template.get"
+          params:
+            output: "templateid"
+            filter:
+              host:
+                - "{{ zabbix_template }}"
+          auth: "{{ zabbix_token }}"
+          id: 4
+      register: template_info
+      failed_when: "'error' in template_info.json"
+      run_once: true
+
+    # ---------------------------------------------------------
+    # 3. 호스트 등록 (속도 조절 적용)
+    # ---------------------------------------------------------
+    - name: Check if Host exists
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "host.get"
+          params:
+            filter:
+              host:
+                - "{{ inventory_hostname }}"
+          auth: "{{ zabbix_token }}"
+          id: 5
+      register: host_info
 
     - name: Create Host
       ansible.builtin.uri:
@@ -39,4 +148,4 @@
       register: create_host_resp
       failed_when: "'error' in create_host_resp.json"
       changed_when: true
-      throttle: 1  # <--- [핵심] 이 줄을 추가하세요! (동시 실행 금지)
+      throttle: 1
