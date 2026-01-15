@@ -49,7 +49,6 @@ topology:
       kind: bridge
 
   links:
-links:
     # [삼각형 구조]
     - endpoints: ["ceos1:eth1", "ceos2:eth1"]
     - endpoints: ["ceos2:eth2", "ceos3:eth1"]
