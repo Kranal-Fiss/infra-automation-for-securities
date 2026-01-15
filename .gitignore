@@ -65,3 +65,5 @@ venv/
 .env
 __pycache__/
 *.pyc
+
+docker/ceos-lab/configs/*.cfg
