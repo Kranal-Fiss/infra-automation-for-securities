@@ -1,0 +1,44 @@
+all:
+  vars:
+    ansible_python_interpreter: "./venv/bin/python"
+
+  children:
+    arista:
+      hosts:
+        ceos1:
+          ansible_host: 172.20.20.11
+          interfaces:
+            Ethernet1: { ip: "10.1.12.1/30", desc: "TO_CEOS2" }
+            Ethernet2: { ip: "10.1.13.1/30", desc: "TO_CEOS3" }
+            Ethernet3: { ip: "172.16.1.1/30", desc: "CLOUD_UPLINK_A" }
+        ceos2:
+          ansible_host: 172.20.20.12
+          interfaces:
+            Ethernet1: { ip: "10.1.12.2/30", desc: "TO_CEOS1" }
+            Ethernet2: { ip: "10.1.23.1/30", desc: "TO_CEOS3" }
+            Ethernet3: { ip: "172.16.2.1/30", desc: "CLOUD_UPLINK_B" }
+        ceos3:
+          ansible_host: 172.20.20.13
+          interfaces:
+            Ethernet1: { ip: "10.1.13.2/30", desc: "TO_CEOS1" }
+            Ethernet2: { ip: "10.1.23.2/30", desc: "TO_CEOS2" }
+            Ethernet3: { ip: "192.168.10.1/24", desc: "INTERNAL_LAN" }
+
+      vars:
+        # 요청하신 보안 파라미터 적용
+        ansible_user: "admin"
+        ansible_password: "admin123"
+        ansible_become_password: "admin123"
+        
+        snmp_user: "admin"
+        snmp_group: "snmpv3"
+        snmp_auth_pw: "admin123"
+        snmp_priv_pw: "admin123"
+
+        # 연결 설정
+        ansible_network_os: arista.eos.eos
+        ansible_connection: network_cli
+        ansible_ssh_private_key_file: "~/.ssh/ansible_id_rsa"
+        ansible_become: yes
+        ansible_become_method: enable
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"

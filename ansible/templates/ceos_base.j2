@@ -1,0 +1,33 @@
+! Arista cEOS Base Configuration
+hostname {{ inventory_hostname }}
+!
+ip routing
+ip multicast-routing
+!
+! 장비 로컬 계정 설정
+username {{ ansible_user }} secret {{ ansible_password }} privilege 15
+!
+! SNMPv3 설정 (Auth/Priv: admin123)
+snmp-server view ALL_ACCESS iso included
+snmp-server group {{ snmp_group }} v3 priv read ALL_ACCESS
+snmp-server user {{ snmp_user }} {{ snmp_group }} v3 auth sha {{ snmp_auth_pw }} priv aes {{ snmp_priv_pw }}
+!
+! NTP 설정
+ntp server pool.ntp.org
+!
+! 인터페이스 설정 (L3)
+{% for intf_name, intf_conf in interfaces.items() %}
+interface {{ intf_name }}
+   description {{ intf_conf.desc }}
+   no switchport
+   ip address {{ intf_conf.ip }}
+   no shutdown
+{% endfor %}
+!
+! BGP 기초 설정 (기본값 사용)
+router bgp {{ bgp_as | default(65000) }}
+   router-id {{ ansible_host }}
+   no bgp default ipv4-unicast
+   graceful-restart
+!
+end

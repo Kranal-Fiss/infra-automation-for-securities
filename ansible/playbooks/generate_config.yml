@@ -1,0 +1,19 @@
+---
+- name: Generate Arista cEOS Startup Configs
+  hosts: arista
+  gather_facts: no
+  connection: local  # 실제 장비에 접속하는 것이 아니라 로컬에서 파일만 생성하므로 local 설정
+
+  tasks:
+    - name: Ensure configs directory exists
+      file:
+        path: "../../docker/ceos-lab/configs"
+        state: directory
+      run_once: true
+
+    - name: Render Jinja2 Template to Config Files
+      template:
+        # playbooks 폴더 기준 상위로 이동 후 templates 폴더 내의 j2 파일 참조
+        src: "../templates/ceos_base.j2"
+        # playbooks 폴더 기준 상위 두 단계 이동 후 docker 폴더 내의 configs 폴더에 저장
+        dest: "../../docker/ceos-lab/configs/{{ inventory_hostname }}.cfg"
