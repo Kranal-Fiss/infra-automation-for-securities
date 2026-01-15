@@ -1,7 +1,7 @@
 name: ceos-triangle
 
 mgmt:
-  network: custom-mgmt
+  network: clab
   ipv4-subnet: 172.20.20.0/24
 
 topology:
