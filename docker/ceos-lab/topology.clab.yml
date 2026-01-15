@@ -49,12 +49,13 @@ topology:
       kind: bridge
 
   links:
+links:
     # [삼각형 구조]
     - endpoints: ["ceos1:eth1", "ceos2:eth1"]
     - endpoints: ["ceos2:eth2", "ceos3:eth1"]
     - endpoints: ["ceos3:eth2", "ceos1:eth2"]
 
-    # [수정] 'bridge:' 접두어를 빼고 위에서 정의한 노드 이름을 직접 씁니다.
-    - endpoints: ["ceos1:eth3", "br-cloud:p1"]
-    - endpoints: ["ceos2:eth3", "br-cloud:p2"]
-    - endpoints: ["ceos3:eth3", "br-internal:p1"]
+    # [수정] 브릿지 쪽 인터페이스 이름을 각각 다르게 지정 (p1-c, p2-c, p1-i 등)
+    - endpoints: ["ceos1:eth3", "br-cloud:p1-c"]
+    - endpoints: ["ceos2:eth3", "br-cloud:p2-c"]
+    - endpoints: ["ceos3:eth3", "br-internal:p1-i"]
