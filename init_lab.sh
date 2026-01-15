@@ -66,38 +66,6 @@ if [ $? -ne 0 ]; then
 fi
 
 
-# ==========================================
-# 4. Ansible Inventory 자동 생성 (개선안)
-# ==========================================
-echo "📝 Ansible Inventory 자동 생성 중: $INVENTORY_FILE"
-
-# (0) [all:vars] 인터프리터 설정 추가 (Next Securities 환경 맞춤)
-cat <<EOF > "$INVENTORY_FILE"
-[all:vars]
-ansible_python_interpreter=$PROJECT_ROOT/venv/bin/python
-
-EOF
-
-# (1) [arista] 그룹 헤더 추가 (기존 방식 유지)
-echo "[arista]" >> "$INVENTORY_FILE"
-
-# (2) clab inspect 결과를 파싱하여 IP 정보 입력
-sudo containerlab inspect -t "$TOPO_FILE" --format json | \
-jq -r '.containers[] | "\(.name) ansible_host=\(.ipv4_address)"' >> "$INVENTORY_FILE"
-
-# (3) [arista:vars] 공통 변수 추가 (기존 내용 동일)
-cat <<EOF >> "$INVENTORY_FILE"
-
-[arista:vars]
-ansible_network_os=arista.eos.eos
-ansible_connection=network_cli
-ansible_user=admin
-ansible_ssh_private_key_file=$KEY_PATH
-ansible_become=yes
-ansible_become_method=enable
-ansible_ssh_common_args='-o StrictHostKeyChecking=no'
-EOF
-
 # =================================================================
 # [Next Securities] 인프라 자동화 환경 최적화 설정
 # =================================================================
