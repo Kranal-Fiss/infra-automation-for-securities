@@ -9,6 +9,7 @@
       file:
         path: "../../docker/ceos-lab/configs"
         state: directory
+        mode: 0755
       run_once: true
 
     - name: Render Jinja2 Template to Config Files
