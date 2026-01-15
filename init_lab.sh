@@ -2,7 +2,7 @@
 
 # ==========================================
 # Script Name: init_lab.sh
-# Description: 브릿지 생성, SSH 키 준비, NTP 설정, Config 생성 및 Lab 배포
+# Description: 권한 복구, 브릿지 생성, SSH 키 준비, NTP 설정, Config 생성 및 Lab 배포
 # ==========================================
 
 # --- [변수 설정] ---
@@ -12,7 +12,7 @@ PROJECT_ROOT="$HOME/infra-automation-for-securities"
 # 토폴로지 파일 경로
 TOPO_FILE="${PROJECT_ROOT}/docker/ceos-lab/topology.clab.yml"
 
-# Ansible 관련 경로 (YAML 형식 반영)
+# Ansible 관련 경로
 INVENTORY_DIR="${PROJECT_ROOT}/ansible/inventory"
 INVENTORY_FILE="${INVENTORY_DIR}/inventory.yml"
 PLAYBOOK_FILE="${PROJECT_ROOT}/ansible/playbooks/generate_configs.yml"
@@ -21,17 +21,37 @@ PLAYBOOK_FILE="${PROJECT_ROOT}/ansible/playbooks/generate_configs.yml"
 KEY_PATH="$HOME/.ssh/ansible_id_rsa"
 
 # ==========================================
-# 0. sudo 권한 선점
+# 0. sudo 권한 선점 및 데이터 디렉토리 권한 복구
 # ==========================================
 # 스크립트 실행 초기에 비밀번호를 한 번만 입력받습니다.
 sudo -v
+
+echo "🔓 Step 0: 데이터 및 설정 디렉토리 권한 복구 중..."
+
+# PostgreSQL/Zabbix 데이터 볼륨 권한 복구 (Permission denied 방지)
+if [ -d "${PROJECT_ROOT}/zbx_env" ]; then
+    sudo chmod -R 777 "${PROJECT_ROOT}/zbx_env"
+fi
+
+# PostgreSQL의 비정상 종료로 인한 락 파일 강제 제거
+PG_PID_FILE="${PROJECT_ROOT}/zbx_env/var/lib/postgresql/data/postmaster.pid"
+if [ -f "$PG_PID_FILE" ]; then
+    echo "   -> 구형 PostgreSQL 락 파일(postmaster.pid) 제거 중..."
+    sudo rm -f "$PG_PID_FILE"
+fi
+
+# cEOS 설정 파일 디렉토리 권한 복구 (cEOS 설정 주입 실패 방지)
+if [ -d "${PROJECT_ROOT}/docker/ceos-lab/configs" ]; then
+    sudo chmod -R 777 "${PROJECT_ROOT}/docker/ceos-lab/configs"
+fi
+
+echo "   -> 권한 정리 완료."
 
 # ==========================================
 # 1. 브릿지 네트워크(Data Plane) 준비
 # ==========================================
 echo "🌐 Step 1: 브릿지 네트워크 점검 중..."
 
-# br-cloud 생성 (외부/클라우드 구간 시뮬레이션)
 if ! ip link show br-cloud > /dev/null 2>&1; then
     echo "   -> br-cloud 생성 중..."
     sudo ip link add br-cloud type bridge
@@ -40,7 +60,6 @@ else
     echo "   -> br-cloud가 이미 존재합니다."
 fi
 
-# br-internal 생성 (증권사 내부망 구간 시뮬레이션)
 if ! ip link show br-internal > /dev/null 2>&1; then
     echo "   -> br-internal 생성 중..."
     sudo ip link add br-internal type bridge
@@ -94,7 +113,6 @@ if [ ! -f "$PLAYBOOK_FILE" ]; then
     exit 1
 fi
 
-# sudo 없이 실행하여 파일 소유권을 일반 유저(clab)로 유지
 ansible-playbook -i "$INVENTORY_FILE" "$PLAYBOOK_FILE"
 
 if [ $? -ne 0 ]; then
@@ -113,7 +131,9 @@ if [ ! -f "$TOPO_FILE" ]; then
     exit 1
 fi
 
-# 배포 실행 (관리자 권한 필수)
+# 배포 전 다시 한 번 Config 파일 접근 권한 확인
+sudo chmod -R 755 "${PROJECT_ROOT}/docker/ceos-lab/configs/"
+
 sudo containerlab deploy -t "$TOPO_FILE" --reconfigure
 
 if [ $? -ne 0 ]; then
@@ -128,12 +148,11 @@ echo "---------------------------------------------------"
 echo "🎉 모든 준비가 완료되었습니다."
 echo ""
 echo "🔍 장비 연결(Ping) 테스트 중..."
-# cEOS 부팅 시간을 고려하여 대기 시간을 15초로 권장 (기존 5초에서 증설)
 sleep 15
 ansible arista -i "$INVENTORY_FILE" -m ping
 
 echo "---------------------------------------------------"
 echo "👉 프로젝트 정보:"
 echo "   - 인벤토리: $INVENTORY_FILE"
-echo "   - 토폴로지: $TOPO_FILE"
+    echo "   - 토폴로지: $TOPO_FILE"
 echo "---------------------------------------------------"

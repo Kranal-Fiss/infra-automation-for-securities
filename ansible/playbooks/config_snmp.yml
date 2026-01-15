@@ -1,27 +1,24 @@
 ---
-- name: Configure SNMP Settings on Arista (Best Practice)
+- name: Push SNMPv3 Configuration to Arista Switches
   hosts: arista
   gather_facts: no
-  connection: network_cli
-  
-  vars:
-    ansible_network_os: arista.eos.eos
-    ansible_user: admin
-    ansible_become: yes
-    ansible_become_method: enable
-    
-    # [핵심 1] RSA 키 파일 사용
-    ansible_ssh_private_key_file: ~/.ssh/ansible_id_rsa
-    
-    # [핵심 2] Pylibssh 엔진 사용 (경고 없음, 고성능)
-    ansible_network_cli_ssh_type: libssh
-    
-    # 호스트 키 확인 무시
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  become: yes
 
   tasks:
-    - name: Configure SNMP User (AuthPriv)
+    - name: Configure SNMPv3 Group and User
       arista.eos.eos_config:
         lines:
-          - snmp-server user V3USER V3GROUP v3 auth sha admin123 priv aes admin123
-        save_when: modified
+          - snmp-server view ALL_ACCESS iso included
+          - snmp-server group snmpv3 v3 priv read ALL_ACCESS
+          - "snmp-server user {{ snmp_user }} snmpv3 v3 auth sha {{ snmp_auth_pass }} priv aes {{ snmp_priv_pass }}"
+        save_when: always  # 실행 후 running-config를 startup-config에 저장
+
+    - name: Verify SNMP Status
+      arista.eos.eos_command:
+        commands:
+          - show snmp
+      register: snmp_status
+
+    - name: Display SNMP Status
+      debug:
+        msg: "{{ snmp_status.stdout_lines[0] }}"

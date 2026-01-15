@@ -17,6 +17,8 @@ topology:
         SKIP_REBOOT: 1
       binds:
         - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
+        # [추가] 설정을 확실히 주입하기 위해 직접 마운트 경로 추가
+        - configs/ceos1.cfg:/mnt/flash/startup-config
 
     ceos2:
       kind: ceos
@@ -29,6 +31,7 @@ topology:
         SKIP_REBOOT: 1
       binds:
         - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
+        - configs/ceos2.cfg:/mnt/flash/startup-config
 
     ceos3:
       kind: ceos
@@ -41,20 +44,18 @@ topology:
         SKIP_REBOOT: 1
       binds:
         - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
+        - configs/ceos3.cfg:/mnt/flash/startup-config
       
-    # [수정] ceos3와 동일한 레벨(들여쓰기)로 위치해야 합니다.
     br-cloud:
       kind: bridge
     br-internal:
       kind: bridge
 
   links:
-    # [삼각형 구조]
     - endpoints: ["ceos1:eth1", "ceos2:eth1"]
     - endpoints: ["ceos2:eth2", "ceos3:eth1"]
     - endpoints: ["ceos3:eth2", "ceos1:eth2"]
 
-    # [수정] 브릿지 쪽 인터페이스 이름을 각각 다르게 지정 (p1-c, p2-c, p1-i 등)
     - endpoints: ["ceos1:eth3", "br-cloud:p1-c"]
     - endpoints: ["ceos2:eth3", "br-cloud:p2-c"]
     - endpoints: ["ceos3:eth3", "br-internal:p1-i"]
