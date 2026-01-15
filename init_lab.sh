@@ -67,43 +67,64 @@ fi
 
 
 # ==========================================
-# 4. Ansible Inventory 자동 생성 (New!)
+# 4. Ansible Inventory 자동 생성 (개선안)
 # ==========================================
 echo "📝 Ansible Inventory 자동 생성 중: $INVENTORY_FILE"
 
-# 디렉토리 생성
-if [ ! -d "$INVENTORY_DIR" ]; then
-    mkdir -p "$INVENTORY_DIR"
-fi
+# (0) [all:vars] 인터프리터 설정 추가 (Next Securities 환경 맞춤)
+cat <<EOF > "$INVENTORY_FILE"
+[all:vars]
+ansible_python_interpreter=$PROJECT_ROOT/venv/bin/python
 
-# (1) [arista] 그룹 헤더 작성
-echo "[arista]" > "$INVENTORY_FILE"
+EOF
+
+# (1) [arista] 그룹 헤더 추가 (기존 방식 유지)
+echo "[arista]" >> "$INVENTORY_FILE"
 
 # (2) clab inspect 결과를 파싱하여 IP 정보 입력
-# 설명: 컨테이너 이름과 IPv4 주소를 추출하여 '이름 ansible_host=IP' 형식으로 저장
 sudo containerlab inspect -t "$TOPO_FILE" --format json | \
 jq -r '.containers[] | "\(.name) ansible_host=\(.ipv4_address)"' >> "$INVENTORY_FILE"
 
-# (3) [arista:vars] 공통 변수 추가
-# 주의: ssh_private_key_file은 위에서 설정한 KEY_PATH를 참조합니다.
+# (3) [arista:vars] 공통 변수 추가 (기존 내용 동일)
 cat <<EOF >> "$INVENTORY_FILE"
 
 [arista:vars]
-# OS 및 연결 설정
 ansible_network_os=arista.eos.eos
 ansible_connection=network_cli
 ansible_user=admin
-
-# 인증 방식: 위에서 생성/확인한 SSH 키 사용
 ansible_ssh_private_key_file=$KEY_PATH
-
-# Enable 모드 설정
 ansible_become=yes
 ansible_become_method=enable
-
-# 랩 환경 특성상 호스트 키 검증 무시 (필수)
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 EOF
+
+# =================================================================
+# [Next Securities] 인프라 자동화 환경 최적화 설정
+# =================================================================
+
+# 1. 로케일 에러 방지 (Ansible 실행 필수 설정)
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
+# 2. 프로젝트 가상환경(venv) 자동 활성화
+PROJECT_ROOT="$HOME/infra-automation-for-securities"
+VENV_PATH="$PROJECT_ROOT/venv/bin/activate"
+
+if [ -f "$VENV_PATH" ]; then
+    source "$VENV_PATH"
+    echo "✅ Python 가상환경 활성화 완료"
+else
+    echo "⚠️  경고: 가상환경($VENV_PATH)을 찾을 수 없습니다."
+fi
+
+# 3. Ansible 실행 환경 점검
+echo "🔍 Ansible 인벤토리 및 장비 연결 확인..."
+# -i 옵션 없이도 실행되도록 ansible.cfg와 연동 확인
+ansible-inventory --graph --vars
+
+# 4. (선택) Arista 컨테이너가 뜰 때까지 대기 후 핑 테스트
+# clab 배포 직후 바로 실행하면 실패할 수 있으므로 잠시 대기 기능을 넣을 수 있습니다.
+# ansible arista -m ping
 
 
 # ==========================================
