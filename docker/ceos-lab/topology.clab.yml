@@ -41,17 +41,20 @@ topology:
         SKIP_REBOOT: 1
       binds:
         - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
+      
+    # [수정] ceos3와 동일한 레벨(들여쓰기)로 위치해야 합니다.
+    br-cloud:
+      kind: bridge
+    br-internal:
+      kind: bridge
 
   links:
-    # [삼각형 구조] 스위치 간 상호 연결 (Inter-switch Links)
+    # [삼각형 구조]
     - endpoints: ["ceos1:eth1", "ceos2:eth1"]
     - endpoints: ["ceos2:eth2", "ceos3:eth1"]
     - endpoints: ["ceos3:eth2", "ceos1:eth2"]
 
-    # [역할 분리] Ethernet3 추가 연결
-    # ceos1, ceos2는 클라우드 이중화 Uplink (외부 브릿지 br-cloud에 연결 가정)
-    - endpoints: ["ceos1:eth3", "bridge:br-cloud"]
-    - endpoints: ["ceos2:eth3", "bridge:br-cloud"]
-    
-    # ceos3는 내부 네트워크 서비스 영역 (내부 브릿지 br-internal에 연결 가정)
-    - endpoints: ["ceos3:eth3", "bridge:br-internal"]
+    # [수정] 'bridge:' 접두어를 빼고 위에서 정의한 노드 이름을 직접 씁니다.
+    - endpoints: ["ceos1:eth3", "br-cloud:p1"]
+    - endpoints: ["ceos2:eth3", "br-cloud:p2"]
+    - endpoints: ["ceos3:eth3", "br-internal:p1"]
