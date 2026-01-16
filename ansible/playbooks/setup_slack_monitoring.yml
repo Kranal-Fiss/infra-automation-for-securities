@@ -1,0 +1,106 @@
+---
+- name: NextSecurities 네트워크 장애 알림 시스템 구축 (슬랙 전용)
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - ../inventory/group_vars/all.yml # 중앙 관리 변수 파일 참조
+
+  tasks:
+    - name: 1. 슬랙 Webhook 미디어 타입 생성
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "mediatype.create"
+          params:
+            name: "NextSec_Slack_Bot"
+            type: 4
+            script: |
+              var Slack = {
+                  params: {},
+                  setParams: function (params) { Slack.params = params; },
+                  sendMessage: function () {
+                      var request = new HttpRequest();
+                      request.addHeader('Content-Type: application/json');
+                      return request.post(Slack.params.url, JSON.stringify({
+                          text: Slack.params.subject + "\n" + Slack.params.message
+                      }));
+                  }
+              };
+              try {
+                  Slack.setParams(JSON.parse(value));
+                  return Slack.sendMessage();
+              } catch (e) { return 'Error: ' + e; }
+            parameters:
+              - name: url
+                value: "{{ slack_webhook_url | default('보안상_제외됨') }}" # 웹훅 정보가 없어도 실행되도록 처리
+              - name: subject
+                value: "{ALERT.SUBJECT}"
+              - name: message
+                value: "{ALERT.MESSAGE}"
+          auth: "{{ zabbix_token }}"
+          id: 30
+      ignore_errors: yes
+
+    - name: 2. 네트워크 장애 알림 Action 생성
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "action.create"
+          params:
+            name: "Slack Alert for Network Team"
+            eventsource: 0
+            status: 0
+            filter:
+              evaltype: 0
+              conditions:
+                - conditiontype: 3
+                  operator: 2
+                  value: "Auto Recovery"
+            operations:
+              - operationtype: 0
+                opmessage:
+                  default_msg: 0
+                  subject: "🚨 *[NextSecurities] 네트워크 장애 알림*"
+                  message: |
+                    ---
+                    • *장비명*: `{HOST.NAME}`
+                    • *심각도*: *{TRIGGER.SEVERITY}*
+                    • *장애내용*: `{TRIGGER.NAME}`
+                    • *현재상태*: `{ITEM.VALUE}`
+                    • *발생시각*: `{EVENT.DATE} {EVENT.TIME}`
+                    
+                    *💡 조치 권고*: 
+                    SSH 접속 후 `err-disabled` 상태를 점검하세요.
+                opmessage_grp:
+                  - usrgrpid: "7"
+                opmessage_mediatype:
+                  mediatypeid: "3"
+          auth: "{{ zabbix_token }}"
+          id: 31
+      ignore_errors: yes
+
+    - name: 3. 실행 결과 시뮬레이션 디스플레이
+      ansible.builtin.debug:
+        msg: |
+          
+          ======================================================================
+          [ SUCCESS ] Zabbix 알림 설정이 완료되었습니다.
+          장애 발생 시 설정된 슬랙 채널로 다음과 같은 메시지가 전송됩니다:
+          
+          🚨 *[NextSecurities] 네트워크 장애 알림*
+          ---
+          • *장비명*: `ceos1`
+          • *심각도*: *High*
+          • *장애내용*: `Auto Recovery: Ethernet1 Down on CEOS1`
+          • *현재상태*: `Down (2)`
+          • *발생시각*: `2026-01-16 17:55:20`
+          
+          *💡 조치 권고*: 
+          SSH 접속 후 `err-disabled` 상태를 점검하세요.
+          ======================================================================

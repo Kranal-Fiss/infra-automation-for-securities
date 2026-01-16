@@ -6,7 +6,7 @@ zabbix_token: "0f169ea2b3bce3dac0ed45199291b84e43b1a7900e0c4b4effb3e4d1a8f98c64"
 zabbix_host_group: "NextSecurities_Network_Switches"
 zabbix_template: "Arista by SNMP"
 
-# SNMPv3 유저 정보를 admin / admin123으로 일원화
+# SNMPv3 유저 정보
 snmp_user: "admin"
 snmp_auth_pass: "admin123"
 snmp_priv_pass: "admin123"
@@ -14,21 +14,10 @@ snmp_security_level: "authPriv"
 snmp_auth_protocol: "SHA"
 snmp_priv_protocol: "AES"
 
-# ---------------------------------------------------------
 # 3. 보편적 SSH 접속 및 환경 설정
-# ---------------------------------------------------------
-# 장비 접속 계정
 ansible_user: "admin"
-
-# SSH 키 경로 (시스템의 $HOME 환경변수를 동적으로 참조)
 ansible_ssh_private_key_file: "{{ lookup('env', 'HOME') }}/.ssh/ansible_id_rsa"
-
-# 네트워크 장비 연결 방식 및 OS 정의
 ansible_connection: "network_cli"
 ansible_network_os: "arista.eos.eos"
-
-# 파이썬 인터프리터 경로 (프로젝트 가상환경 사용)
 ansible_python_interpreter: "./venv/bin/python"
-
-# SSH 보안 설정 (호스트 키 검증 무시)
 ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
