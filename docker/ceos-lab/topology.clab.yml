@@ -17,8 +17,6 @@ topology:
         SKIP_REBOOT: 1
       binds:
         - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
-        # [추가] 설정을 확실히 주입하기 위해 직접 마운트 경로 추가
-        - configs/ceos1.cfg:/mnt/flash/startup-config
 
     ceos2:
       kind: ceos
@@ -31,7 +29,6 @@ topology:
         SKIP_REBOOT: 1
       binds:
         - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
-        - configs/ceos2.cfg:/mnt/flash/startup-config
 
     ceos3:
       kind: ceos
@@ -44,7 +41,6 @@ topology:
         SKIP_REBOOT: 1
       binds:
         - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
-        - configs/ceos3.cfg:/mnt/flash/startup-config
       
     br-cloud:
       kind: bridge
