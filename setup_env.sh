@@ -18,6 +18,30 @@ echo -e "${CYAN}====================================================${NC}"
 echo -e "${GREEN}[1/6] 시스템 패키지 및 종속성 설치 중...${NC}"
 sudo apt-get update
 sudo apt-get install -y curl gnupg2 software-properties-common python3-venv python3-pip git chrony iproute2 snmp
+# --- [기존 시스템 패키지 설치 섹션에 추가] ---
+
+echo -e "${GREEN}[1/6] 시스템 패키지 및 종속성 설치 중...${NC}"
+sudo apt-get update
+sudo apt-get install -y curl gnupg2 software-properties-common python3-venv python3-pip git chrony iproute2 snmp locales
+
+echo -e "${GREEN}[1/6] 언어 팩(Locales) 구성 및 영구 설정 중...${NC}"
+# 시스템에 영문 UTF-8 로케일 생성 및 기존 불필요 항목 제거
+sudo locale-gen --purge en_US.UTF-8
+
+# 시스템 전체 기본 언어 설정을 en_US.UTF-8로 고정
+sudo update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
+# 현재 실행 중인 스크립트 세션에 즉시 적용
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
+# .bashrc에 로케일 설정을 추가하여 향후 모든 로그인 세션에 적용 (중복 추가 방지)
+if ! grep -q "en_US.UTF-8" ~/.bashrc; then
+    echo -e "\n# 로케일 설정 자동 추가 (Next증권 프로젝트)" >> ~/.bashrc
+    echo 'export LANG=en_US.UTF-8' >> ~/.bashrc
+    echo 'export LC_ALL=en_US.UTF-8' >> ~/.bashrc
+    echo " -> .bashrc에 환경 변수 주입 완료."
+fi
 
 # 2. Docker 및 Docker Compose 설치
 echo -e "${GREEN}[2/6] Docker 엔진 및 Compose 플러그인 확인...${NC}"

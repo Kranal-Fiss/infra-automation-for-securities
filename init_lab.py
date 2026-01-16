@@ -19,6 +19,9 @@ INVENTORY_DIR = os.path.join(PROJECT_ROOT, "ansible/inventory")
 INVENTORY_FILE = os.path.join(INVENTORY_DIR, "inventory.yml")
 PLAYBOOK_FILE = os.path.join(PROJECT_ROOT, "ansible/playbooks/generate_configs.yml")
 KEY_PATH = os.path.join(HOME, ".ssh/ansible_id_rsa")
+# 로케일설정
+os.environ["LANG"] = "en_US.UTF-8"
+os.environ["LC_ALL"] = "en_US.UTF-8"
 
 # venv 내의 실행 파일 경로 설정
 VENV_BIN = os.path.join(PROJECT_ROOT, "venv/bin")
