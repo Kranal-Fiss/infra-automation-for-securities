@@ -4,7 +4,7 @@
   gather_facts: no
   connection: network_cli
   tasks:
-    - name: 1-1. Ethernet1 포트에 BPDU Guard 설정 (image_0418c5.png 반영)
+    - name: 1-1. Ethernet1 포트에 BPDU Guard 설정
       arista.eos.eos_config:
         lines:
           - switchport
@@ -12,13 +12,32 @@
           - spanning-tree bpduguard enable
         parents: interface Ethernet1
 
-- name: Step 2 - Zabbix 자가 치유 로직 설정 (최종 규격 반영)
+- name: Step 2 - Zabbix 자가 치유 로직 설정 (최종 API 규격 반영)
   hosts: localhost
   gather_facts: no
   vars_files:
     - ../vars/zabbix_vars.yml
   tasks:
-    - name: 2-2. Zabbix 트리거 생성 (호스트명 소문자 교정)
+    - name: 2-1. Zabbix 복구용 글로벌 스크립트 생성
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "script.create"
+          params:
+            name: "Ansible_Port_Recovery_Script"
+            command: "ansible-playbook -i /home/clab/infra-automation-for-securities/ansible/inventory/inventory.yml /home/clab/infra-automation-for-securities/ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
+            type: 0        # Script 타입
+            execute_on: 1  # Zabbix Server에서 실행
+            scope: 2       # Action operation용 스크립트
+          auth: "{{ zabbix_token }}"
+          id: 12
+      register: script_result
+      ignore_errors: yes # 이미 존재할 경우를 대비
+
+    - name: 2-2. Zabbix 트리거 생성 (이미 성공했으므로 존재 시 유지)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -28,14 +47,14 @@
           method: "trigger.create"
           params:
             description: "Auto Recovery: Ethernet1 Down on {HOST.NAME}"
-            # Zabbix 내부 호스트명인 소문자 'ceos1'으로 교정
             expression: "last(/ceos1/net.if.status[ifOperStatus.1])=2"
             priority: 4
           auth: "{{ zabbix_token }}"
           id: 10
       register: trigger_result
+      ignore_errors: yes
 
-    - name: 2-3. Zabbix 자가 치유 Action 생성 (불필요 파라미터 완전 제거)
+    - name: 2-3. Zabbix 자가 치유 Action 생성 (Script ID 참조 방식)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -50,16 +69,16 @@
             operations:
               - operationtype: 1
                 opcommand:
-                  # 최신 API에서 에러를 유발한 'execute_on' 제거
-                  command: "ansible-playbook -i /home/clab/infra-automation-for-securities/ansible/inventory/inventory.yml /home/clab/infra-automation-for-securities/ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
+                  # 생성된 스크립트의 ID를 참조 (직접 command 입력 대신 사용)
+                  scriptid: "{{ script_result.json.result.scriptids[0] | default('1') }}" 
                 opcommand_grp:
                   - groupid: "2"
           auth: "{{ zabbix_token }}"
           id: 11
       register: action_result
 
-    - name: 2-4. 실행 결과 디버깅 (최종 결과 확인)
+    - name: 2-4. 최종 실행 결과 디버깅
       ansible.builtin.debug:
         msg: 
-          - "Trigger Creation: {{ trigger_result.json.result | default(trigger_result.json.error) }}"
+          - "Script Creation: {{ script_result.json.result | default(script_result.json.error) }}"
           - "Action Creation: {{ action_result.json.result | default(action_result.json.error) }}"
