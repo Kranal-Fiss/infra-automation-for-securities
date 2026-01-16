@@ -1,4 +1,21 @@
-# --- Ansible 관련 ---
+# --- OS & Editors ---
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.tmp
+
+# --- Python ---
+venv/
+.env
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# --- Ansible ---
 *.retry
 *.log
 *.vault_pass
@@ -7,63 +24,35 @@
 *.ppk
 credentials.yml
 secrets.yml
+ansible_id_rsa*
 
-# --- Python 관련 ---
-__pycache__/
-*.py[cod]
-*$py.class
+# --- Network Lab (Containerlab & Arista) ---
+# 자동 생성된 토폴로지 실행 폴더 및 장비별 설정 파일 제외
+clab-*/
+docker/ceos-lab/configs/*.cfg
 
-# --- OS & 에디터 관련 ---
-.DS_Store
-.vscode/
-.idea/
-*.swp
-
-# --- 환경 설정 ---
-.env
-
-# --- 대용량 바이너리 및 이미지 (GitHub 용량 제한 방지) ---
+# --- Docker & Monitoring Stack ---
+# Zabbix/Postgres 실제 데이터 및 대용량 이미지 파일 제외
+zbx_env/
+docker/images/
+images/
+*.tar
 *.tar.xz
 *.xz
 *.iso
 *.bin
-# 특정 대용량 파일 직접 지정
-ubuntu@54.180.90.108
-docker/images/
 
+# --- Infrastructure as Code (Terraform) ---
 .terraform/
 *.tfstate
 *.tfstate.backup
-terraform.tfvars
-
-# SSH 키 파일 (절대 올리면 안 됨)
-*.pem
-
-# 테라폼 상태 및 설정 파일
-.terraform/
-*.tfstate
-*.tfstate.backup
+*.tfvars
 .terraform.lock.hcl
+terraform
+terraform.exe
 
-# AWS 설정 및 환경 변수
+# --- Cloud & Credentials (AWS) ---
 .aws/
 credentials
-.env
-
-# 테라폼 실행 파일 (바이너리는 용량이 크고 OS마다 다르므로 제외 권장)
-terraform.exe
-terraform
-
-#images 폴더 제외
-images/
-
-# Containerlab 실행 시 생성되는 폴더 무시
-clab-*/
-
-# Python 가상 환경 무시
-venv/
-.env
-__pycache__/
-*.pyc
-
-docker/ceos-lab/configs/*.cfg
+aws_access_key_id
+aws_secret_access_key
