@@ -12,13 +12,13 @@
           - spanning-tree bpduguard enable
         parents: interface Ethernet1
 
-- name: Step 2 - Zabbix 자가 치유 로직 설정 (최종 API 규격 반영)
+- name: Step 2 - Zabbix 자가 치유 로직 설정 (필터 조건 및 API 규격 완벽 반영)
   hosts: localhost
   gather_facts: no
   vars_files:
     - ../vars/zabbix_vars.yml
   tasks:
-    - name: 2-1. Zabbix 복구용 글로벌 스크립트 생성 (Scope 교정)
+    - name: 2-1. Zabbix 복구용 글로벌 스크립트 생성 (자동화 전용 Scope 설정)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -27,17 +27,17 @@
           jsonrpc: "2.0"
           method: "script.create"
           params:
-            name: "Ansible_Port_Recovery_Script_v2"
+            name: "Ansible_Port_Recovery_Script_Final"
             command: "ansible-playbook -i /home/clab/infra-automation-for-securities/ansible/inventory/inventory.yml /home/clab/infra-automation-for-securities/ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
             type: 0        # Script 타입
             execute_on: 1  # Zabbix Server에서 실행
-            scope: 1       # 1: Action operation (자동화용 필수 설정)
+            scope: 1       # 1: Action operation (자동화 액션 전용)
           auth: "{{ zabbix_token }}"
           id: 12
       register: script_result
-      ignore_errors: yes
+      ignore_errors: yes # 이미 존재할 경우 무시
 
-    - name: 2-2. Zabbix 트리거 생성 (기존 성공 건 유지)
+    - name: 2-2. Zabbix 트리거 생성 (호스트 ceos1 및 정확한 아이템 키 반영)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -47,13 +47,15 @@
           method: "trigger.create"
           params:
             description: "Auto Recovery: Ethernet1 Down on {HOST.NAME}"
+            # image_056a64.png에서 확인한 정확한 키와 소문자 호스트명 적용
             expression: "last(/ceos1/net.if.status[ifOperStatus.1])=2"
             priority: 4
           auth: "{{ zabbix_token }}"
           id: 10
+      register: trigger_result
       ignore_errors: yes
 
-    - name: 2-3. Zabbix 자가 치유 Action 생성 (Script ID 참조)
+    - name: 2-3. Zabbix 자가 치유 Action 생성 (트리거-액션 연결 필터 추가)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -62,14 +64,20 @@
           jsonrpc: "2.0"
           method: "action.create"
           params:
-            name: "Auto Recovery for err-disable v2"
-            eventsource: 0
-            status: 0
+            name: "Auto Recovery for err-disable Final"
+            eventsource: 0 # 트리거 이벤트 기반
+            status: 0      # 활성화 상태
+            filter:        # [핵심] 액션이 리스트에 보이고 작동하게 하는 조건
+              evaltype: 0
+              conditions:
+                - conditiontype: 3 # 트리거 이름 기반
+                  operator: 2      # 포함(like)
+                  value: "Auto Recovery" # 2-2에서 설정한 이름과 매칭
             operations:
-              - operationtype: 1 # Remote command
+              - operationtype: 1
                 opcommand:
-                  # 생성된 스크립트 ID만 전달 (command 파라미터 제외)
-                  scriptid: "{{ script_result.json.result.scriptids[0] | default('4') }}" 
+                  # 생성된 스크립트 ID를 동적으로 가져오거나 기존 ID(5번 등) 사용
+                  scriptid: "{{ script_result.json.result.scriptids[0] | default('5') }}" 
                 opcommand_grp:
                   - groupid: "2"
           auth: "{{ zabbix_token }}"
@@ -79,5 +87,6 @@
     - name: 2-4. 최종 실행 결과 디버깅
       ansible.builtin.debug:
         msg: 
-          - "Script ID: {{ script_result.json.result.scriptids[0] | default('Already Exists') }}"
-          - "Action Result: {{ action_result.json.result | default(action_result.json.error) }}"
+          - "Script Status: {{ script_result.json.result | default('Already exists') }}"
+          - "Trigger Status: {{ trigger_result.json.result | default('Already exists') }}"
+          - "Action IDs: {{ action_result.json.result.actionids | default(action_result.json.error) }}"
