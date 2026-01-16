@@ -1,0 +1,64 @@
+---
+# [Play 1] Arista 장비 SNMP 트랩 설정
+- name: Step 1 - Configure SNMP Traps on Arista Switches
+  hosts: arista
+  gather_facts: no
+  connection: network_cli
+  tasks:
+    - name: SNMP 트랩 및 호스트 설정 주입
+      arista.eos.eos_config:
+        lines:
+          - snmp-server host 172.20.20.1 v3 priv {{ snmp_user }}
+          - snmp-server enable traps link
+          - snmp-server enable traps errdisable
+      # all.yml에 정의된 snmp_user 변수를 참조합니다.
+
+# [Play 2] Zabbix 서버 트리거 및 자가 치유 액션 설정
+- name: Step 2 - Configure Zabbix Trigger and Action via API
+  hosts: localhost
+  connection: local
+  vars_files:
+    - "../inventory/group_vars/all.yml" # Zabbix 접속 정보 참조
+  
+  tasks:
+    - name: Zabbix 'err-disable' 트리거 생성
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "trigger.create"
+          params:
+            description: "Interface err-disable detected on {HOST.NAME}"
+            expression: "last(/Arista by SNMP/snmptrap[err-disable])<>0"
+            priority: 4 # High
+          auth: "{{ zabbix_token }}"
+          id: 10
+      register: trigger_resp
+      ignore_errors: yes # 이미 존재할 경우를 대비
+
+    - name: Zabbix 자가 치유 Action(Remote Command) 생성
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "action.create"
+          params:
+            name: "Auto Recovery for err-disable"
+            eventsource: 0 # Triggers
+            status: 0 # Enabled
+            operations:
+              - operationtype: 1 # Remote command
+                opcommand:
+                  type: 0 # Custom script
+                  # 실제 프로젝트 경로와 venv 경로를 동적으로 구성합니다.
+                  command: "cd {{ lookup('env', 'PWD') }} && source venv/bin/activate && ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
+                  execute_on: 1 # Zabbix agent (Server host)
+                opcommand_grp:
+                  - groupid: "2" # Linux servers 또는 적절한 그룹 ID
+          auth: "{{ zabbix_token }}"
+          id: 11
+      ignore_errors: yes
