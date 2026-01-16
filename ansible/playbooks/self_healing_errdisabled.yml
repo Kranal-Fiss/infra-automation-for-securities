@@ -55,7 +55,7 @@
       register: trigger_result
       ignore_errors: yes
 
-    - name: 2-3. Zabbix 자가 치유 Action 생성 (트리거-액션 연결 필터 추가)
+    - name: 2-3. Zabbix 자가 치유 Action 생성 (Trigger ID 직접 매칭 방식)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -64,25 +64,24 @@
           jsonrpc: "2.0"
           method: "action.create"
           params:
-            name: "Auto Recovery for err-disable Final"
-            eventsource: 0 # 트리거 이벤트 기반
-            status: 0      # 활성화 상태
-            filter:        # [핵심] 액션이 리스트에 보이고 작동하게 하는 조건
+            name: "Final Auto Recovery Action" # 중복 피하기 위해 이름 변경
+            eventsource: 0 # Trigger events
+            status: 0      # Enabled
+            filter:
               evaltype: 0
               conditions:
-                - conditiontype: 3 # 트리거 이름 기반
-                  operator: 2      # 포함(like)
-                  value: "Auto Recovery" # 2-2에서 설정한 이름과 매칭
+                - conditiontype: 2 # 2: Trigger ID
+                  operator: 0      # 0: equals
+                  value: "23870"   # [!] 아까 로그에 찍힌 triggerid 23870 직접 입력
             operations:
               - operationtype: 1
                 opcommand:
-                  # 생성된 스크립트 ID를 동적으로 가져오거나 기존 ID(5번 등) 사용
-                  scriptid: "{{ script_result.json.result.scriptids[0] | default('5') }}" 
+                  scriptid: "5"    # 아까 성공한 Script ID 5번 사용
                 opcommand_grp:
                   - groupid: "2"
           auth: "{{ zabbix_token }}"
           id: 11
-      register: action_result
+      register: final_action_result
 
     - name: 2-4. 최종 실행 결과 디버깅
       ansible.builtin.debug:
