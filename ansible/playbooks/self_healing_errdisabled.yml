@@ -14,13 +14,11 @@
 
 - name: Step 2 - Zabbix 자가 치유 로직 설정 (API 규격 준수)
   hosts: localhost
-  gather_facts: no
+  gather_facts: no  # localhost에서 장비 팩트 수집 시도 방지
   vars_files:
     - ../vars/zabbix_vars.yml
   tasks:
-    # TASK 2-1(Item 생성)은 템플릿에 이미 존재하므로 중복 방지를 위해 삭제함
-
-    - name: 2-2. Zabbix 트리거 생성 (Fact 기반 아이템 키 적용)
+    - name: 2-2. Zabbix 트리거 생성 (호스트 이름 기반으로 수정)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -30,14 +28,14 @@
           method: "trigger.create"
           params:
             description: "Auto Recovery: Ethernet1 Down on {HOST.NAME}"
-            # image_056a64.png에서 확인된 정확한 키 사용
-            expression: "last(/Arista by SNMP/net.if.status[ifOperStatus.1])=2"
-            priority: 4  # High
+            # image_056a64.png에서 확인된 실제 호스트와 키 매칭
+            expression: "last(/CEOS1/net.if.status[ifOperStatus.1])=2"
+            priority: 4
           auth: "{{ zabbix_token }}"
           id: 10
-      register: trigger_result
+      register: trigger_result  # 디버깅을 위해 결과 저장
 
-    - name: 2-3. Zabbix 자가 치유 Action 생성 (6.4/7.0 API 구조 반영)
+    - name: 2-3. Zabbix 자가 치유 Action 생성 (불필요 파라미터 제거)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -47,28 +45,21 @@
           method: "action.create"
           params:
             name: "Auto Recovery for err-disable"
-            eventsource: 0  # 트리거 이벤트
-            status: 0       # 활성화
-            filter:
-              evaltype: 0
-              conditions:
-                - conditiontype: 3  # 트리거 이름 기반 필터
-                  operator: 2       # 포함(like)
-                  value: "Auto Recovery"
+            eventsource: 0
+            status: 0
             operations:
-              - operationtype: 1  # 원격 명령 실행
+              - operationtype: 1
                 opcommand:
-                  type: 0         # 사용자 지정 스크립트
-                  execute_on: 1   # Zabbix 서버에서 실행
-                  # command 파라미터는 opcommand 객체 바로 아래 위치
+                  # 최신 API에서 에러를 유발하는 'type' 제거
+                  execute_on: 1
                   command: "ansible-playbook -i /home/clab/infra-automation-for-securities/ansible/inventory/inventory.yml /home/clab/infra-automation-for-securities/ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
                 opcommand_grp:
-                  - groupid: "2"  # Linux servers 권한 그룹 ID
+                  - groupid: "2"
           auth: "{{ zabbix_token }}"
           id: 11
       register: action_result
 
-    - name: 2-4. 실행 결과 디버깅 (선택 사항)
+    - name: 2-4. 실행 결과 디버깅 (최종 확인용)
       ansible.builtin.debug:
         msg: 
           - "Trigger Creation: {{ trigger_result.json.result | default(trigger_result.json.error) }}"
