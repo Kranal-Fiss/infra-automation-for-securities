@@ -8,17 +8,17 @@
       arista.eos.eos_config:
         lines:
           - switchport
-          - spanning-tree portfast  # edge 대신 portfast 사용
+          - spanning-tree portfast
           - spanning-tree bpduguard enable
         parents: interface Ethernet1
 
-- name: Step 2 - Zabbix 자가 치유 로직 설정 (API 규격 준수)
+- name: Step 2 - Zabbix 자가 치유 로직 설정 (최종 규격 반영)
   hosts: localhost
-  gather_facts: no  # localhost에서 장비 팩트 수집 시도 방지
+  gather_facts: no
   vars_files:
     - ../vars/zabbix_vars.yml
   tasks:
-    - name: 2-2. Zabbix 트리거 생성 (호스트 이름 기반으로 수정)
+    - name: 2-2. Zabbix 트리거 생성 (호스트명 소문자 교정)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -28,14 +28,14 @@
           method: "trigger.create"
           params:
             description: "Auto Recovery: Ethernet1 Down on {HOST.NAME}"
-            # image_056a64.png에서 확인된 실제 호스트와 키 매칭
-            expression: "last(/CEOS1/net.if.status[ifOperStatus.1])=2"
+            # Zabbix 내부 호스트명인 소문자 'ceos1'으로 교정
+            expression: "last(/ceos1/net.if.status[ifOperStatus.1])=2"
             priority: 4
           auth: "{{ zabbix_token }}"
           id: 10
-      register: trigger_result  # 디버깅을 위해 결과 저장
+      register: trigger_result
 
-    - name: 2-3. Zabbix 자가 치유 Action 생성 (불필요 파라미터 제거)
+    - name: 2-3. Zabbix 자가 치유 Action 생성 (불필요 파라미터 완전 제거)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -50,8 +50,7 @@
             operations:
               - operationtype: 1
                 opcommand:
-                  # 최신 API에서 에러를 유발하는 'type' 제거
-                  execute_on: 1
+                  # 최신 API에서 에러를 유발한 'execute_on' 제거
                   command: "ansible-playbook -i /home/clab/infra-automation-for-securities/ansible/inventory/inventory.yml /home/clab/infra-automation-for-securities/ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
                 opcommand_grp:
                   - groupid: "2"
@@ -59,7 +58,7 @@
           id: 11
       register: action_result
 
-    - name: 2-4. 실행 결과 디버깅 (최종 확인용)
+    - name: 2-4. 실행 결과 디버깅 (최종 결과 확인)
       ansible.builtin.debug:
         msg: 
           - "Trigger Creation: {{ trigger_result.json.result | default(trigger_result.json.error) }}"
