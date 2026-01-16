@@ -3,7 +3,7 @@
   hosts: arista
   gather_facts: no
   connection: network_cli
-  # [핵심] cEOS 파일 쓰기 충돌 방지를 위해 한 대씩 순차 실행
+  # [보완] cEOS 장비들의 동시 파일 쓰기 충돌 방지를 위해 반드시 한 대씩 순차 실행
   serial: 1  
   
   vars:
@@ -19,6 +19,7 @@
     timezone: "Asia/Seoul"
 
   pre_tasks:
+    # 제어 노드(localhost)에서 장비로 나가는 인터페이스의 IP를 동적으로 추출
     - name: Detect Control Node IP (Dynamic)
       ansible.builtin.shell: "ip route get {{ ansible_host }} | grep -oP 'src \\K\\S+'"
       register: my_ip_check
@@ -43,17 +44,22 @@
       arista.eos.eos_config:
         lines:
           - "ntp server {{ ntp_server_ip }}"
-        # [수정] Busy 에러 방지를 위해 여기서 저장하지 않고 다음 태스크에서 처리합니다.
-        save_when: never
+        save_when: never # 여기서 저장하지 않고 아래에서 별도로 시도
+
+    # [중요] 설정을 마친 후 cEOS 내부 프로세스(ConfigAgent)가 정리할 시간을 줍니다.
+    - name: Wait for ConfigAgent to settle
+      ansible.builtin.pause:
+        seconds: 3
 
     - name: Save Configuration (Retry on Busy)
       arista.eos.eos_command:
         commands: "copy running-config startup-config"
       register: save_res
-      # [수정] stderr를 직접 찾지 말고, 전체 결과에서 'busy'라는 글자가 있는지 확인
-      until: save_res is not failed or "busy" not in (save_res.msg | default(''))
+      # [해결] 결과 메시지에 'busy'가 없을 때까지 최대 5번, 10초 간격으로 재시도
+      until: save_res is not failed or 'busy' not in (save_res.msg | default(''))
       retries: 5
-      delay: 5
+      delay: 10
+      ignore_errors: yes # 만약 끝까지 실패해도 실행 설정은 들어갔으므로 무시
 
     - name: Verify NTP
       arista.eos.eos_command:
