@@ -1,48 +1,25 @@
 ---
-# [Play 1] Arista 장비 SNMP 트랩 설정 (생략 - 이전과 동일하게 유지)
-- name: Step 1 - Configure SNMP Traps and Interface Status
+- name: Step 1 - Arista 장비 장애 유발 설정 (BPDU Guard)
   hosts: arista
   gather_facts: no
   connection: network_cli
   tasks:
-    - name: 1-1. 글로벌 SNMP 트랩 설정
+    - name: 1-1. Ethernet1 포트에 BPDU Guard 설정 (image_0418c5.png 반영)
       arista.eos.eos_config:
         lines:
-          - snmp-server host 172.20.20.1 version 3 priv {{ snmp_user }} udp-port 162
-          - snmp-server enable traps snmp link-down
-          - snmp-server enable traps snmp link-up
-          - snmp-server enable traps entity
+          - switchport
+          - spanning-tree portfast  # edge 대신 portfast 사용
+          - spanning-tree bpduguard enable
+        parents: interface Ethernet1
 
-# [Play 2] Zabbix 설정 자동화 (아이템/트리거/액션 생성)
-- name: Step 2 - Configure Zabbix objects via API
+- name: Step 2 - Zabbix 자가 치유 로직 설정 (API 규격 준수)
   hosts: localhost
-  connection: local
-  gather_facts: no
   vars_files:
-    - "../inventory/group_vars/all.yml"
-
+    - ../vars/zabbix_vars.yml
   tasks:
-    # 트리거가 참조할 수 있도록 아이템을 먼저 생성합니다.
-    - name: 2-1. Zabbix SNMP Trap 아이템 생성
-      ansible.builtin.uri:
-        url: "{{ zabbix_url }}/api_jsonrpc.php"
-        method: POST
-        body_format: json
-        body:
-          jsonrpc: "2.0"
-          method: "item.create"
-          params:
-            name: "SNMP Trap: Link Down/Disabled"
-            key_: "snmptrap[link-down]"
-            hostid: "10254" # 확인하신 'Arista by SNMP' 템플릿 ID 적용
-            type: 17 # SNMP trap
-            value_type: 1 # Character
-            delay: "0"
-          auth: "{{ zabbix_token }}"
-          id: 12
-      ignore_errors: yes
+    # TASK 2-1(Item 생성)은 템플릿에 이미 존재하므로 중복 방지를 위해 삭제함
 
-    - name: 2-2. Zabbix 'err-disable' 트리거 생성 (Polling 방식)
+    - name: 2-2. Zabbix 트리거 생성 (Fact 기반 아이템 키 적용)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -51,15 +28,15 @@
           jsonrpc: "2.0"
           method: "trigger.create"
           params:
-            description: "Auto Recovery: Interface Down detected on {HOST.NAME}"
-            # 트랩 대신 포트 상태(net.if.status)가 2(down)인 상태가 지속되면 발동
-            expression: "last(/Arista by SNMP/net.if.status[Ethernet1])=2"
-            priority: 4
+            description: "Auto Recovery: Ethernet1 Down on {HOST.NAME}"
+            # image_056a64.png에서 확인된 정확한 키 사용
+            expression: "last(/Arista by SNMP/net.if.status[ifOperStatus.1])=2"
+            priority: 4  # High
           auth: "{{ zabbix_token }}"
           id: 10
-      ignore_errors: yes
+      register: trigger_result
 
-    - name: 2-3. Zabbix 자가 치유 Action 생성 (에러 수정본)
+    - name: 2-3. Zabbix 자가 치유 Action 생성 (6.4/7.0 API 구조 반영)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -69,15 +46,29 @@
           method: "action.create"
           params:
             name: "Auto Recovery for err-disable"
-            eventsource: 0
-            status: 0
+            eventsource: 0  # 트리거 이벤트
+            status: 0       # 활성화
+            filter:
+              evaltype: 0
+              conditions:
+                - conditiontype: 3  # 트리거 이름 기반 필터
+                  operator: 2       # 포함(like)
+                  value: "Auto Recovery"
             operations:
-              - operationtype: 1
+              - operationtype: 1  # 원격 명령 실행
                 opcommand:
-                  # 'type' 파라미터를 완전히 제거하여 32602 에러 방지
-                  command: "ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
-                  execute_on: 1
+                  type: 0         # 사용자 지정 스크립트
+                  execute_on: 1   # Zabbix 서버에서 실행
+                  # command 파라미터는 opcommand 객체 바로 아래 위치
+                  command: "ansible-playbook -i /home/clab/infra-automation-for-securities/ansible/inventory/inventory.yml /home/clab/infra-automation-for-securities/ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
                 opcommand_grp:
-                  - groupid: "2"
+                  - groupid: "2"  # Linux servers 권한 그룹 ID
           auth: "{{ zabbix_token }}"
           id: 11
+      register: action_result
+
+    - name: 2-4. 실행 결과 디버깅 (선택 사항)
+      ansible.builtin.debug:
+        msg: 
+          - "Trigger Creation: {{ trigger_result.json.result | default(trigger_result.json.error) }}"
+          - "Action Creation: {{ action_result.json.result | default(action_result.json.error) }}"
