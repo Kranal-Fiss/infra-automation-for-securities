@@ -50,11 +50,10 @@
       arista.eos.eos_command:
         commands: "copy running-config startup-config"
       register: save_res
-      # [핵심] busy 메시지가 결과에 포함되어 있으면 5초 간격으로 최대 5번 재시도
-      until: '"busy" not in save_res.stderr'
+      # [수정] stderr를 직접 찾지 말고, 전체 결과에서 'busy'라는 글자가 있는지 확인
+      until: save_res is not failed or "busy" not in (save_res.msg | default(''))
       retries: 5
       delay: 5
-      ignore_errors: yes
 
     - name: Verify NTP
       arista.eos.eos_command:
