@@ -10,7 +10,7 @@ topology:
       kind: ceos
       image: ceos-lab:4.35.1F
       mgmt-ipv4: 172.20.20.11
-      startup-config: configs/ceos1.cfg
+      startup-config: ./configs/ceos1.cfg
       env:
         INTFTYPE: eth
         ETBA: 1
@@ -22,7 +22,7 @@ topology:
       kind: ceos
       image: ceos-lab:4.35.1F
       mgmt-ipv4: 172.20.20.12
-      startup-config: configs/ceos2.cfg
+      startup-config: ./configs/ceos2.cfg
       env:
         INTFTYPE: eth
         ETBA: 1
@@ -34,7 +34,7 @@ topology:
       kind: ceos
       image: ceos-lab:4.35.1F
       mgmt-ipv4: 172.20.20.13
-      startup-config: configs/ceos3.cfg
+      startup-config: ./configs/ceos3.cfg
       env:
         INTFTYPE: eth
         ETBA: 1
