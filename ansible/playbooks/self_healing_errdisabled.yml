@@ -18,7 +18,7 @@
   vars_files:
     - ../vars/zabbix_vars.yml
   tasks:
-    - name: 2-1. Zabbix 복구용 글로벌 스크립트 생성
+    - name: 2-1. Zabbix 복구용 글로벌 스크립트 생성 (Scope 교정)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -27,17 +27,17 @@
           jsonrpc: "2.0"
           method: "script.create"
           params:
-            name: "Ansible_Port_Recovery_Script"
+            name: "Ansible_Port_Recovery_Script_v2"
             command: "ansible-playbook -i /home/clab/infra-automation-for-securities/ansible/inventory/inventory.yml /home/clab/infra-automation-for-securities/ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
             type: 0        # Script 타입
             execute_on: 1  # Zabbix Server에서 실행
-            scope: 2       # Action operation용 스크립트
+            scope: 1       # 1: Action operation (자동화용 필수 설정)
           auth: "{{ zabbix_token }}"
           id: 12
       register: script_result
-      ignore_errors: yes # 이미 존재할 경우를 대비
+      ignore_errors: yes
 
-    - name: 2-2. Zabbix 트리거 생성 (이미 성공했으므로 존재 시 유지)
+    - name: 2-2. Zabbix 트리거 생성 (기존 성공 건 유지)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -51,10 +51,9 @@
             priority: 4
           auth: "{{ zabbix_token }}"
           id: 10
-      register: trigger_result
       ignore_errors: yes
 
-    - name: 2-3. Zabbix 자가 치유 Action 생성 (Script ID 참조 방식)
+    - name: 2-3. Zabbix 자가 치유 Action 생성 (Script ID 참조)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -63,14 +62,14 @@
           jsonrpc: "2.0"
           method: "action.create"
           params:
-            name: "Auto Recovery for err-disable"
+            name: "Auto Recovery for err-disable v2"
             eventsource: 0
             status: 0
             operations:
-              - operationtype: 1
+              - operationtype: 1 # Remote command
                 opcommand:
-                  # 생성된 스크립트의 ID를 참조 (직접 command 입력 대신 사용)
-                  scriptid: "{{ script_result.json.result.scriptids[0] | default('1') }}" 
+                  # 생성된 스크립트 ID만 전달 (command 파라미터 제외)
+                  scriptid: "{{ script_result.json.result.scriptids[0] | default('4') }}" 
                 opcommand_grp:
                   - groupid: "2"
           auth: "{{ zabbix_token }}"
@@ -80,5 +79,5 @@
     - name: 2-4. 최종 실행 결과 디버깅
       ansible.builtin.debug:
         msg: 
-          - "Script Creation: {{ script_result.json.result | default(script_result.json.error) }}"
-          - "Action Creation: {{ action_result.json.result | default(action_result.json.error) }}"
+          - "Script ID: {{ script_result.json.result.scriptids[0] | default('Already Exists') }}"
+          - "Action Result: {{ action_result.json.result | default(action_result.json.error) }}"
