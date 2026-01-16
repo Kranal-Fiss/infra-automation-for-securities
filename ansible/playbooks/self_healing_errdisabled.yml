@@ -59,7 +59,7 @@
           id: 10
       ignore_errors: yes
 
-    - name: 2-3. Zabbix 자가 치유 Action 생성 (6.0+ 구문 적용)
+    - name: 2-3. Zabbix 자가 치유 Action 생성 (에러 수정본)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -73,10 +73,11 @@
             status: 0
             operations:
               - operationtype: 1
-                opcommand: # 에러가 났던 'type' 파라미터를 제거했습니다.
-                  command: "cd {{ lookup('env', 'PWD') }} && source venv/bin/activate && ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
+                opcommand:
+                  # 'type' 파라미터를 완전히 제거하여 32602 에러 방지
+                  command: "ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
+                  execute_on: 1
                 opcommand_grp:
                   - groupid: "2"
           auth: "{{ zabbix_token }}"
           id: 11
-      ignore_errors: yes
