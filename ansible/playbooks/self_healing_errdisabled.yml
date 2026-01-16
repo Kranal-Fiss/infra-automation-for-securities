@@ -42,7 +42,7 @@
           id: 12
       ignore_errors: yes
 
-    - name: 2-2. Zabbix 'err-disable' 트리거 생성
+    - name: 2-2. Zabbix 'err-disable' 트리거 생성 (Polling 방식)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -51,9 +51,9 @@
           jsonrpc: "2.0"
           method: "trigger.create"
           params:
-            description: "Interface err-disable or Link-down detected on {HOST.NAME}"
-            # 템플릿 ID가 일치하므로 이제 정상 등록됩니다.
-            expression: "last(/Arista by SNMP/snmptrap[link-down])<>0"
+            description: "Auto Recovery: Interface Down detected on {HOST.NAME}"
+            # 트랩 대신 포트 상태(net.if.status)가 2(down)인 상태가 지속되면 발동
+            expression: "last(/Arista by SNMP/net.if.status[Ethernet1])=2"
             priority: 4
           auth: "{{ zabbix_token }}"
           id: 10
