@@ -14,6 +14,7 @@
 
 - name: Step 2 - Zabbix 자가 치유 로직 설정 (API 규격 준수)
   hosts: localhost
+  gather_facts: no
   vars_files:
     - ../vars/zabbix_vars.yml
   tasks:
