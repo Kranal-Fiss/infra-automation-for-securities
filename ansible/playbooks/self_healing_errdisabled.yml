@@ -12,7 +12,7 @@
           - spanning-tree bpduguard enable
         parents: interface Ethernet1
 
-- name: Step 2 - Zabbix 자가 치유 로직 설정 (최종 규격 반영)
+- name: Step 2 - Zabbix 자가 치유 로직 설정 (이름 기반 필터 반영)
   hosts: localhost
   gather_facts: no
   vars_files:
@@ -27,7 +27,7 @@
           jsonrpc: "2.0"
           method: "script.create"
           params:
-            name: "Ansible_Port_Recovery_Script_Final"
+            name: "Ansible_Port_Recovery_Script_Final_v2"
             command: "ansible-playbook -i /home/clab/infra-automation-for-securities/ansible/inventory/inventory.yml /home/clab/infra-automation-for-securities/ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
             type: 0
             execute_on: 1
@@ -54,7 +54,7 @@
       register: trigger_result
       ignore_errors: yes
 
-    - name: 2-3. Zabbix 자가 치유 Action 생성 (Trigger ID 직접 매칭)
+    - name: 2-3. Zabbix 자가 치유 Action 생성 (트리거 이름 매칭 방식)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -63,29 +63,29 @@
           jsonrpc: "2.0"
           method: "action.create"
           params:
-            name: "Final Auto Recovery Action"
+            name: "Final Auto Recovery Action v5"
             eventsource: 0
             status: 0
             filter:
               evaltype: 0
               conditions:
-                - conditiontype: 2
-                  operator: 0
-                  value: "23870" # 이전 로그에서 확인된 triggerid
+                - conditiontype: 3    # 3: Trigger name 기반 필터
+                  operator: 2         # 2: contains (포함)
+                  value: "Auto Recovery" # 트리거 이름에 이 문구가 있으면 실행
             operations:
               - operationtype: 1
                 opcommand:
-                  scriptid: "5" # 이전 로그에서 확인된 scriptid
+                  # 앞서 생성된 스크립트 ID 사용 (기존 5번 혹은 신규 ID)
+                  scriptid: "{{ script_result.json.result.scriptids[0] | default('5') }}"
                 opcommand_grp:
                   - groupid: "2"
           auth: "{{ zabbix_token }}"
           id: 11
-      register: final_action_result # 이름을 맞췄습니다
+      register: final_action_result
       ignore_errors: yes
 
     - name: 2-4. 최종 실행 결과 디버깅
       ansible.builtin.debug:
         msg: 
-          - "Script Status: {{ script_result.json.result | default('Check Zabbix UI') }}"
-          - "Trigger Status: {{ trigger_result.json.result | default('Already exists') }}"
-          - "Action IDs: {{ final_action_result.json.result.actionids | default('Created or Existing') }}"
+          - "Script ID: {{ script_result.json.result.scriptids[0] | default('Check Zabbix UI') }}"
+          - "Action ID: {{ final_action_result.json.result.actionids | default('Action already exists') }}"
