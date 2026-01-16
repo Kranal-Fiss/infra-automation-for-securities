@@ -12,13 +12,13 @@
           - spanning-tree bpduguard enable
         parents: interface Ethernet1
 
-- name: Step 2 - Zabbix 자가 치유 로직 설정 (실행 대상 호스트 교정)
+- name: Step 2 - Zabbix 자가 치유 로직 설정 (경로 보안 반영)
   hosts: localhost
   gather_facts: no
   vars_files:
     - ../vars/zabbix_vars.yml
   tasks:
-    - name: 2-1. Zabbix 복구용 글로벌 스크립트 생성
+    - name: 2-1. Zabbix 복구용 글로벌 스크립트 생성 (전체 경로 사용)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -27,8 +27,9 @@
           jsonrpc: "2.0"
           method: "script.create"
           params:
-            name: "Ansible_Port_Recovery_Script_Final_v3"
-            command: "ansible-playbook -i /home/clab/infra-automation-for-securities/ansible/inventory/inventory.yml /home/clab/infra-automation-for-securities/ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
+            name: "Ansible_Port_Recovery_Script_Final_v4"
+            # [!] ansible-playbook 대신 절대 경로인 /usr/bin/ansible-playbook 사용
+            command: "/usr/bin/ansible-playbook -i /home/clab/infra-automation-for-securities/ansible/inventory/inventory.yml /home/clab/infra-automation-for-securities/ansible/playbooks/self_healing_port.yml --limit {HOST.NAME}"
             type: 0
             execute_on: 1
             scope: 1
@@ -51,7 +52,6 @@
             priority: 4
           auth: "{{ zabbix_token }}"
           id: 10
-      register: trigger_result
       ignore_errors: yes
 
     - name: 2-3. Zabbix 자가 치유 Action 생성 (Target 호스트 직접 지정)
@@ -63,7 +63,7 @@
           jsonrpc: "2.0"
           method: "action.create"
           params:
-            name: "Final Auto Recovery Action v6"
+            name: "Final Auto Recovery Action v7"
             eventsource: 0
             status: 0
             filter:
@@ -75,17 +75,11 @@
             operations:
               - operationtype: 1
                 opcommand:
-                  scriptid: "{{ script_result.json.result.scriptids[0] | default('5') }}"
-                # [핵심] 특정 그룹 대신 이벤트를 일으킨 호스트(hostid: 0)에서 실행하도록 변경
+                  # 생성된 v4 스크립트 ID 사용
+                  scriptid: "{{ script_result.json.result.scriptids[0] | default('10') }}"
                 opcommand_hst:
                   - hostid: "0" 
           auth: "{{ zabbix_token }}"
           id: 11
       register: final_action_result
       ignore_errors: yes
-
-    - name: 2-4. 최종 실행 결과 디버깅
-      ansible.builtin.debug:
-        msg: 
-          - "Script ID: {{ script_result.json.result.scriptids[0] | default('Check Zabbix UI') }}"
-          - "Action ID: {{ final_action_result.json.result.actionids | default('Action already exists') }}"
