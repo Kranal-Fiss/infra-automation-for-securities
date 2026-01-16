@@ -37,6 +37,7 @@
 - name: Step 2 - Configure Zabbix Trigger and Action via API
   hosts: localhost
   connection: local
+  gather_facts: no
   vars_files:
     - "../inventory/group_vars/all.yml" # Zabbix 접속 정보 및 토큰 참조
   
