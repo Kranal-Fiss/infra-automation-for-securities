@@ -1,0 +1,133 @@
+<mxfile compressed="false" host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.0 Chrome/140.0.7339.249 Electron/38.7.2 Safari/537.36" version="29.3.0">
+  <diagram id="Network Topology" name="Network Topology">
+    <mxGraphModel dx="1029" dy="973" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="350" pageHeight="550" background="none" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <object label="" src_label="eth1" trgt_label="eth1" source="clab-ceos-triangle-ceos1" target="clab-ceos-triangle-ceos2" id="link_id:link:clab-ceos-triangle-ceos1:eth1:clab-ceos-triangle-ceos2:eth1">
+          <mxCell edge="1" parent="1" source="wqR37h18a-s5zGkPe7bf-10" style="endArrow=none;jumpStyle=gap;entryX=1;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;exitX=-0.019;exitY=0.606;exitDx=0;exitDy=0;exitPerimeter=0;" target="wqR37h18a-s5zGkPe7bf-9">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="197" y="146" as="sourcePoint" />
+              <mxPoint x="63" y="146" as="targetPoint" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos1:eth1:clab-ceos-triangle-ceos2:eth1-src" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos1:eth1:clab-ceos-triangle-ceos2:eth1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="eth1" vertex="1">
+          <mxGeometry relative="1" x="-0.5" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos1:eth1:clab-ceos-triangle-ceos2:eth1-trgt" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos1:eth1:clab-ceos-triangle-ceos2:eth1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="eth1" vertex="1">
+          <mxGeometry relative="-1" x="0.5" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" src_label="eth3" trgt_label="p1-c" source="clab-ceos-triangle-ceos1" target="clab-ceos-triangle-br-cloud" id="link_id:link:clab-ceos-triangle-ceos1:eth3:clab-ceos-triangle-br-cloud:p1-c">
+          <mxCell edge="1" parent="1" source="wqR37h18a-s5zGkPe7bf-9" style="endArrow=none;jumpStyle=gap;exitY=0;exitX=0.5;entryX=0.379;entryY=0.99;entryDx=0;entryDy=0;entryPerimeter=0;exitDx=0;exitDy=0;exitPerimeter=0;" target="wqR37h18a-s5zGkPe7bf-1">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="-99.5" y="104" as="sourcePoint" />
+              <mxPoint x="-39" y="39" as="targetPoint" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos1:eth3:clab-ceos-triangle-br-cloud:p1-c-src" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos1:eth3:clab-ceos-triangle-br-cloud:p1-c" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="eth3 172.16.1.1/30" vertex="1">
+          <mxGeometry relative="1" x="-0.5" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos1:eth3:clab-ceos-triangle-br-cloud:p1-c-trgt" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos1:eth3:clab-ceos-triangle-br-cloud:p1-c" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="p1-c" vertex="1">
+          <mxGeometry relative="-1" x="0.5" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" src_label="eth2" trgt_label="eth1" source="clab-ceos-triangle-ceos2" target="clab-ceos-triangle-ceos3" id="link_id:link:clab-ceos-triangle-ceos2:eth2:clab-ceos-triangle-ceos3:eth1">
+          <mxCell edge="1" parent="1" source="wqR37h18a-s5zGkPe7bf-10" style="endArrow=none;jumpStyle=gap;entryY=0;entryX=0.75;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;" target="wqR37h18a-s5zGkPe7bf-11">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="108" y="179" as="sourcePoint" />
+              <mxPoint x="8.350000000000136" y="246.19999999999982" as="targetPoint" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos2:eth2:clab-ceos-triangle-ceos3:eth1-src" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos2:eth2:clab-ceos-triangle-ceos3:eth1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="eth2 10.1.23.1/30" vertex="1">
+          <mxGeometry relative="1" x="-0.5" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos2:eth2:clab-ceos-triangle-ceos3:eth1-trgt" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos2:eth2:clab-ceos-triangle-ceos3:eth1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="eth2 10.1.23.2/30" vertex="1">
+          <mxGeometry relative="-1" x="0.5" as="geometry">
+            <mxPoint x="15" y="15" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" src_label="eth3" trgt_label="p2-c" source="clab-ceos-triangle-ceos2" target="clab-ceos-triangle-br-cloud" id="link_id:link:clab-ceos-triangle-ceos2:eth3:clab-ceos-triangle-br-cloud:p2-c">
+          <mxCell edge="1" parent="1" source="wqR37h18a-s5zGkPe7bf-10" style="endArrow=none;jumpStyle=gap;exitY=0;exitX=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.748;entryY=0.99;entryDx=0;entryDy=0;entryPerimeter=0;" target="wqR37h18a-s5zGkPe7bf-1">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="114.40000000000009" y="101.89999999999986" as="sourcePoint" />
+              <mxPoint x="37.00000000000023" y="37.99999999999977" as="targetPoint" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos2:eth3:clab-ceos-triangle-br-cloud:p2-c-src" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos2:eth3:clab-ceos-triangle-br-cloud:p2-c" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="eth3 172.16.1.2/30" vertex="1">
+          <mxGeometry relative="1" x="-0.5" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos2:eth3:clab-ceos-triangle-br-cloud:p2-c-trgt" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos2:eth3:clab-ceos-triangle-br-cloud:p2-c" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="p2-c" vertex="1">
+          <mxGeometry relative="-1" x="0.5" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" src_label="eth2" trgt_label="eth2" source="clab-ceos-triangle-ceos3" target="clab-ceos-triangle-ceos1" id="link_id:link:clab-ceos-triangle-ceos3:eth2:clab-ceos-triangle-ceos1:eth2">
+          <mxCell edge="1" parent="1" source="wqR37h18a-s5zGkPe7bf-11" style="endArrow=none;jumpStyle=gap;entryY=1;exitY=0;entryX=0.5;exitX=0.25;entryDx=0;entryDy=0;exitDx=0;exitDy=0;entryPerimeter=0;exitPerimeter=0;" target="wqR37h18a-s5zGkPe7bf-9">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="-0.4999999999997726" y="244.99999999999977" as="sourcePoint" />
+              <mxPoint x="-99.5" y="179" as="targetPoint" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos3:eth2:clab-ceos-triangle-ceos1:eth2-src" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos3:eth2:clab-ceos-triangle-ceos1:eth2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="eth1 10.1.13.2/30" vertex="1">
+          <mxGeometry relative="1" x="-0.5" as="geometry">
+            <mxPoint x="-8" y="13" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos3:eth2:clab-ceos-triangle-ceos1:eth2-trgt" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos3:eth2:clab-ceos-triangle-ceos1:eth2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="eth2 10.1.13.1/30" vertex="1">
+          <mxGeometry relative="-1" x="0.5" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" src_label="eth3" trgt_label="p1-i" source="clab-ceos-triangle-ceos3" target="clab-ceos-triangle-br-internal" id="link_id:link:clab-ceos-triangle-ceos3:eth3:clab-ceos-triangle-br-internal:p1-i">
+          <mxCell edge="1" parent="1" source="wqR37h18a-s5zGkPe7bf-11" style="endArrow=none;jumpStyle=gap;entryY=0;exitY=1;entryX=0.5;exitX=0.5;entryDx=0;entryDy=0;entryPerimeter=0;exitDx=0;exitDy=0;exitPerimeter=0;" target="wqR37h18a-s5zGkPe7bf-13">
+            <mxGeometry relative="1" as="geometry">
+              <mxPoint x="-0.4999999999997726" y="319.9999999999998" as="sourcePoint" />
+              <mxPoint x="-0.5" y="440" as="targetPoint" />
+            </mxGeometry>
+          </mxCell>
+        </object>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos3:eth3:clab-ceos-triangle-br-internal:p1-i-src" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos3:eth3:clab-ceos-triangle-br-internal:p1-i" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="eth3 192.168.10.1/24" vertex="1">
+          <mxGeometry relative="1" x="-0.5" as="geometry">
+            <mxPoint x="-3" y="-11" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="link_id:link:clab-ceos-triangle-ceos3:eth3:clab-ceos-triangle-br-internal:p1-i-trgt" connectable="0" parent="link_id:link:clab-ceos-triangle-ceos3:eth3:clab-ceos-triangle-br-internal:p1-i" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];;" value="p1-i" vertex="1">
+          <mxGeometry relative="-1" x="0.5" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="wqR37h18a-s5zGkPe7bf-1" parent="1" style="html=1;verticalLabelPosition=top;align=center;labelBackgroundColor=#ffffff;verticalAlign=bottom;strokeWidth=2;strokeColor=#0080F0;shadow=0;dashed=0;shape=mxgraph.ios7.icons.cloud;labelPosition=center;" value="&lt;font style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212));&quot;&gt;br-cloud&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="117" x="-59" y="-72" as="geometry" />
+        </mxCell>
+        <mxCell id="wqR37h18a-s5zGkPe7bf-9" parent="1" style="sketch=0;points=[[0.015,0.015,0],[0.985,0.015,0],[0.985,0.985,0],[0.015,0.985,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];verticalLabelPosition=middle;html=1;verticalAlign=middle;aspect=fixed;align=right;pointerEvents=1;shape=mxgraph.cisco19.rect;prIcon=l3_switch;fillColor=#FAFAFA;strokeColor=#005073;labelPosition=left;" value="ceos1 172.20.20.11(OOB)" vertex="1">
+          <mxGeometry height="50" width="50" x="-122" y="113" as="geometry" />
+        </mxCell>
+        <mxCell id="wqR37h18a-s5zGkPe7bf-10" parent="1" style="sketch=0;points=[[0.015,0.015,0],[0.985,0.015,0],[0.985,0.985,0],[0.015,0.985,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];verticalLabelPosition=middle;verticalAlign=middle;aspect=fixed;align=left;pointerEvents=1;shape=mxgraph.cisco19.rect;prIcon=l3_switch;fillColor=#FAFAFA;strokeColor=#005073;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;html=1;labelPosition=right;" value="ceos2 172.20.20.12(OOB)" vertex="1">
+          <mxGeometry height="50" width="50" x="75" y="106" as="geometry" />
+        </mxCell>
+        <mxCell id="wqR37h18a-s5zGkPe7bf-11" parent="1" style="sketch=0;points=[[0.015,0.015,0],[0.985,0.015,0],[0.985,0.985,0],[0.015,0.985,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];verticalLabelPosition=middle;html=1;verticalAlign=middle;aspect=fixed;align=right;pointerEvents=1;shape=mxgraph.cisco19.rect;prIcon=l3_switch;fillColor=#FAFAFA;strokeColor=#005073;labelPosition=left;" value="ceos3 172.20.20.13(OOB)" vertex="1">
+          <mxGeometry height="50" width="50" x="-25.5" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="wqR37h18a-s5zGkPe7bf-13" parent="1" style="sketch=0;points=[[0.015,0.015,0],[0.985,0.015,0],[0.985,0.985,0],[0.015,0.985,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0.25,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0],[0,0.25,0]];verticalLabelPosition=bottom;html=1;verticalAlign=top;aspect=fixed;align=center;pointerEvents=1;shape=mxgraph.cisco19.rect;prIcon=workgroup_switch;fillColor=#FAFAFA;strokeColor=#005073;" value="br-internal 192.168.10.0/24" vertex="1">
+          <mxGeometry height="50" width="50" x="-25.5" y="389" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
