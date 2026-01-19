@@ -8,7 +8,6 @@
 
 본 실습 환경은 가용성과 확장성을 고려하여 3대의 Arista cEOS를 삼각형(Triangle) 구조로 배치하였으며, 별도의 Management Plane을 통해 모니터링 시스템과 연결됩니다.
 
-```text
 ===========================================================================
 [ Management Plane ] - Out-of-Band (OOB) Monitoring
 ===========================================================================
@@ -34,8 +33,8 @@
                      /                 \
              (Path A)                   (Path B)
             +-------/-------+          +-------\-------+
-            |      ceos1     +----------+      ceos2   |
-            |    (Spine 1)   |  (eth1)  |    (Spine 2) |
+            |      ceos1    +----------+      ceos2    |
+            |    (Spine 1)  |  (eth1)  |    (Spine 2)  |
             +---+-------+---+          +---+-------+---+
                 |                                  |
          (eth2) |                                  | (eth2)
@@ -47,6 +46,8 @@
                           +------------+
 
 
+![Topology](docker/ceos-lab/topology.clab.drawio.svg)
+
 
 ## 2. Tech Stack
 
@@ -57,9 +58,6 @@
 * **Infrastructure**: AWS EC2 (Ubuntu 24.04 LTS) or WSL2
 * **Languages**: Python 3.10+ (Custom venv)
 
----
-```
-![Topology](docker/ceos-lab/topology.clab.drawio.svg)
 
 ## 3. Project Structure
 
@@ -88,26 +86,26 @@
 
 ### Step 0. 환경 세팅 및 의존성 설치
 
-```bash
+
 chmod +x setup_env.sh
 ./setup_env.sh
 
-```
+
 
 ### Step 1. 가상환경 활성화 및 랩 배포
 
-```bash
+
 source venv/bin/activate
 ./init_lab.py
 
-```
+
 
 ### Step 2. 모니터링 스택 구동
 
-```bash
+
 docker compose -f ./docker/monitoring/docker-compose.yml up -d
 
-```
+
 
 ### Step 3. Zabbix 호스트 등록 프로세스 (필수)
 
