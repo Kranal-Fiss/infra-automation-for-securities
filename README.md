@@ -8,6 +8,8 @@
 
 본 실습 환경은 가용성과 확장성을 고려하여 3대의 Arista cEOS를 삼각형(Triangle) 구조로 배치하였으며, 별도의 Management Plane을 통해 모니터링 시스템과 연결됩니다.
 
+![Topology](docker/ceos-lab/topology.clab.drawio.svg)
+```
 ===========================================================================
 [ Management Plane ] - Out-of-Band (OOB) Monitoring
 ===========================================================================
@@ -44,9 +46,9 @@
                 +---------+    ceos3   +-----------+
                   (eth1)  |   (Leaf)   |  (eth2)
                           +------------+
+```
 
 
-![Topology](docker/ceos-lab/topology.clab.drawio.svg)
 
 
 ## 2. Tech Stack
