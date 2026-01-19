@@ -46,7 +46,7 @@
                   (eth1)  |   (Leaf)   |  (eth2)
                           +------------+
 
-![Topology](https://raw.githubusercontent.com/Kranal-Fiss/infra-automation-for-securities/main/docker/ceos-lab/topology.clab.drawio.svg)
+![Topology](docker/ceos-lab/topology.clab.drawio.svg)
 
 ## 2. Tech Stack
 
