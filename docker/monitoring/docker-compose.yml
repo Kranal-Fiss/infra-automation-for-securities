@@ -13,7 +13,7 @@ services:
     networks:
       - clab
 
-  # 2. Zabbix Server (SNMP Trap & Scripts)
+  # 2. Zabbix Server
   zabbix-server:
     image: zabbix/zabbix-server-pgsql:alpine-6.4-latest
     container_name: zabbix-server
@@ -67,7 +67,7 @@ services:
     networks:
       - clab
 
-  # 5. Grafana
+  # 5. Grafana (자동화 설정 업데이트 반영)
   grafana:
     image: grafana/grafana-oss:latest
     container_name: grafana
@@ -76,12 +76,16 @@ services:
       - "3000:3000"
     volumes:
       - ./grafana_env/var/lib/grafana:/var/lib/grafana:rw
+      # 아래 provisioning 폴더 연결 설정을 추가했습니다.
+      - ./grafana_env/provisioning:/etc/grafana/provisioning:ro
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_INSTALL_PLUGINS=alexanderzobnin-zabbix-app
+      # Zabbix 플러그인이 정상 작동하도록 허용 리스트에 추가합니다.
+      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=alexanderzobnin-zabbix-datasource
     networks:
       - clab
 
 networks:
   clab:
-    external: true  # 주의: 반드시 'clab' 네트워크가 먼저 존재해야 함
+    external: true
