@@ -129,7 +129,7 @@ def main():
     # 5-1. 모니터링 스택 자동화
     setup_grafana_provisioning()
     print("Step 5.2: 모니터링 스택(Zabbix/Grafana) 실행 중...")
-    run_command(["docker-compose", "-f", DOCKER_COMPOSE_FILE, "up", "-d"], use_sudo=True)
+    run_command(["docker", "compose", "-f", DOCKER_COMPOSE_FILE, "up", "-d"], use_sudo=True)
 
     # 6. Lab 배포
     print("Step 6: Containerlab 배포 시작...")
