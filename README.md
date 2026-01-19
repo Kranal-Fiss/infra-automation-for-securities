@@ -46,7 +46,7 @@
                   (eth1)  |   (Leaf)   |  (eth2)
                           +------------+
 
-![Topology](docker/ceos-lab/topology.clab.drawio.svg)
+
 
 ## 2. Tech Stack
 
@@ -58,6 +58,8 @@
 * **Languages**: Python 3.10+ (Custom venv)
 
 ---
+```
+![Topology](docker/ceos-lab/topology.clab.drawio.svg)
 
 ## 3. Project Structure
 
