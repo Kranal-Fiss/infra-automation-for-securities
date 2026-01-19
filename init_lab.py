@@ -73,8 +73,9 @@ datasources:
     type: alexanderzobnin-zabbix-datasource
     access: proxy
     url: http://zabbix-web:8080/api_jsonrpc.php
+    editable: true  # <--- 이 줄을 추가하면 UI에서 수정이 가능해집니다.
     jsonData:
-      username: admin
+      username: Admin  # <--- 대문자 'A'로 미리 바꿔두는 것을 추천합니다.
       password: zabbix
 """
     with open(os.path.join(GRAFANA_PROV_DIR, "datasources/zabbix.yaml"), "w") as f:
