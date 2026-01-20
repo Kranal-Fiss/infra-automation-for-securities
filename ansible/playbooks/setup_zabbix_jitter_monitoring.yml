@@ -3,7 +3,8 @@
   hosts: localhost
   gather_facts: no
   vars_files:
-    - ../inventory/all.yml #
+    - ../inventory/all.yml
+    - ../inventory/group_vars/secrets.yml
 
   tasks:
     - name: 1. 통합 알림 전용 슬랙 미디어 타입 생성
@@ -37,14 +38,15 @@
               - name: url
                 value: "{{ slack_webhook_url }}"
               - name: subject
-                value: "--- [NextSecurities] 네트워크 경보 발령 ---"
+                value: "--- [NextSecurities] Network Alert ---"
               - name: message
                 value: "{ALERT.MESSAGE}"
           auth: "{{ zabbix_token }}" #
           id: 30
+      register: mediatype_result
       ignore_errors: yes
 
-    - name: 2. 통합 알림 Action 생성 (Jitter 및 Port 상태 포함)
+    - name: 2. 통합 알림 Action 생성 (Jitter 및 err-disabled 포함)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php" #
         method: POST
@@ -53,7 +55,7 @@
           jsonrpc: "2.0"
           method: "action.create"
           params:
-            name: "Unified Alert for Network Team"
+            name: "Unified Alert for NextSecurities Team"
             eventsource: 0
             status: 0
             filter:
@@ -66,23 +68,21 @@
               - operationtype: 0
                 opmessage:
                   default_msg: 0
-                  subject: "--- 네트워크 장애 및 품질 저하 알림 ---"
+                  subject: "--- Network Issue Detected ---"
                   message: |
-                    ---
                     - 장비명: {HOST.NAME}
                     - 심각도: {TRIGGER.SEVERITY}
                     - 장애내용: {TRIGGER.NAME}
                     - 현재상태: {ITEM.VALUE}
                     - 발생시각: {EVENT.DATE} {EVENT.TIME}
                     
-                    관련 가이드: 
-                    1. Jitter 수치 이상 시: cEOS 인터페이스 및 CPU 부하 점검
-                    2. Port Down/err-disabled 발생 시: SSH 접속 후 'show interfaces status err-disabled' 실행
-                    3. 복구 시도: 해당 인터페이스 'shutdown' 후 'no shutdown' 수행
+                    조치 가이드: 
+                    1. Jitter 수치 이상 시: cEOS 인터페이스 및 CPU 부하 점검 필요
+                    2. Port err-disabled 발생 시: show interfaces status err-disabled 명령어로 원인 파악 후 재가동
                 opmessage_grp:
                   - usrgrpid: "7"
                 opmessage_mediatype:
-                  mediatypeid: "3" # 환경에 맞게 조정 필요
+                  mediatypeid: "{{ mediatype_result.json.result.mediatypeids[0] | default('3') }}"
           auth: "{{ zabbix_token }}" #
           id: 31
       ignore_errors: yes
