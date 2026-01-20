@@ -7,46 +7,7 @@
     - ../inventory/group_vars/secrets.yml
 
   tasks:
-    - name: 1. 슬랙 미디어 타입 생성 (존재 시 무시)
-      ansible.builtin.uri:
-        url: "{{ zabbix_url }}/api_jsonrpc.php"
-        method: POST
-        body_format: json
-        body:
-          jsonrpc: "2.0"
-          method: "mediatype.create"
-          params:
-            name: "NextSec_Unified_Slack_Bot"
-            type: 4
-            script: |
-              var Slack = {
-                  params: {},
-                  setParams: function (params) { Slack.params = params; },
-                  sendMessage: function () {
-                      var request = new HttpRequest();
-                      request.addHeader('Content-Type: application/json');
-                      return request.post(Slack.params.url, JSON.stringify({
-                          text: Slack.params.subject + "\n" + Slack.params.message
-                      }));
-                  }
-              };
-              try {
-                  Slack.setParams(JSON.parse(value));
-                  return Slack.sendMessage();
-              } catch (e) { return 'Error: ' + e; }
-            parameters:
-              - name: url
-                value: "{{ slack_webhook_url }}"
-              - name: subject
-                value: "--- [NextSecurities] Network Alert ---"
-              - name: message
-                value: "{ALERT.MESSAGE}"
-          auth: "{{ zabbix_token }}"
-          id: 30
-      register: mediatype_result
-      ignore_errors: yes
-
-    - name: 2. 통합 알림 Action 생성 (필터 조건 수정)
+    - name: 1. 통합 알림 Action 생성 (필터 최적화)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -55,15 +16,15 @@
           jsonrpc: "2.0"
           method: "action.create"
           params:
-            name: "Unified Alert for NextSecurities Team"
+            name: "NextSec_Unified_Action"
             eventsource: 0
             status: 0
             filter:
               evaltype: 0
               conditions:
-                - conditiontype: 16 # Maintenance status (정상 범위 값으로 수정)
-                  operator: 7      # is not in maintenance
-                  value: ""
+                - conditiontype: 4  # Trigger severity
+                  operator: 5       # is greater than or equal to
+                  value: "3"        # Average (주황색) 이상의 장애만 알림
             operations:
               - operationtype: 0
                 opmessage:
@@ -80,14 +41,18 @@
                     1. Jitter 수치 이상 시: cEOS 인터페이스 및 CPU 부하 점검
                     2. Port err-disabled 발생 시: show interfaces status err-disabled 명령어로 원인 파악
                 opmessage_grp:
-                  - usrgrpid: "7" # Admin 그룹 ID
+                  - usrgrpid: "7"    # Zabbix administrators 그룹 ID
                 opmessage_mediatype:
-                  mediatypeid: "3" # 위 태스크에서 생성된 ID 확인 필요
+                  mediatypeid: "3"   # NextSec_Unified_Slack_Bot의 ID
           auth: "{{ zabbix_token }}"
-          id: 31
+          id: 1
       register: action_result
-      ignore_errors: yes
+      # Zabbix API 에러 발생 시 Ansible이 실패(red)로 표시하도록 설정
+      failed_when: 
+        - action_result.json.error is defined
+        - "'already exists' not in action_result.json.error.data" 
 
-    - name: 3. 실행 결과 요약
+    - name: 2. 실행 결과 확인
       ansible.builtin.debug:
-        msg: "Action 생성 결과: {{ 'Success' if not action_result.failed else 'Check if already exists' }}"
+        msg: "Action 생성에 성공하였습니다. Zabbix UI를 확인하세요."
+      when: action_result.json.result is defined
