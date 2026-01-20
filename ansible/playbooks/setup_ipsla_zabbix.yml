@@ -1,0 +1,71 @@
+---
+- name: Arista cEOS IP SLA Jitter 및 Zabbix 연동 자동화
+  hosts: arista
+  gather_facts: no
+  vars_files:
+    - all.yml  # 제공해주신 변수 파일 로드
+
+  tasks:
+    # ---------------------------------------------------------
+    # 1. Arista cEOS 장비 설정 (IP SLA)
+    # ---------------------------------------------------------
+    - name: IP SLA Responder 및 Sender 설정
+      arista.eos.eos_config:
+        lines:
+          - ip sla responder
+          - ip sla 10
+          - "udp-jitter {{ next_hop_ip }} 5000 num-packets 100"
+          - frequency 60
+          - ip sla schedule 10 start-time now life forever
+      vars:
+        # 삼각형 순환 구조를 위한 대상 IP 계산
+        next_hop_ip: "{{ '172.20.20.12' if inventory_hostname == 'ceos1' else 
+                         '172.20.20.13' if inventory_hostname == 'ceos2' else 
+                         '172.20.20.11' }}"
+      become: yes
+
+    # ---------------------------------------------------------
+    # 2. Zabbix 아이템 등록 (API 연동)
+    # ---------------------------------------------------------
+    - name: Zabbix 호스트 ID 조회
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "host.get"
+          params:
+            filter:
+              host: ["{{ inventory_hostname }}"]
+          auth: "{{ zabbix_token }}"
+          id: 1
+      register: zabbix_host
+      delegate_to: localhost
+
+    - name: Zabbix 지터(Jitter) 모니터링 아이템 생성
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "item.create"
+          params:
+            name: "IP SLA 10 Average Jitter"
+            key_: "ipsla.jitter.avg[10]"
+            hostid: "{{ zabbix_host.json.result[0].hostid }}"
+            type: 20  # SNMP agent
+            snmp_oid: "1.3.6.1.4.1.9.9.42.1.5.2.1.26.10"
+            value_type: 0  # Numeric float
+            units: "ms"
+            delay: "1m"
+            interfaceid: "{{ (zabbix_host.json.result[0].interfaces | selectattr('type', 'equalto', 2) | first).interfaceid }}"
+          auth: "{{ zabbix_token }}"
+          id: 2
+      when: zabbix_host.json.result | length > 0
+      delegate_to: localhost
+      failed_when: 
+        - create_item_resp.json.error is defined 
+        - "'item already exists' not in create_item_resp.json.error.data"
+      register: create_item_resp

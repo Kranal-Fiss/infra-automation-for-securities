@@ -1,8 +1,20 @@
 ---
 
-# Infra Automation for Securities (Arista cEOS Lab)
+[Project] Arista cEOS 기반 네트워크 자동화 및 통합 모니터링 스택 구축
+본 프로젝트는 금융권 네트워크 엔지니어에게 요구되는 인프라 가시성 확보와 운영 자동화 역량을 증명하기 위해 설계된 'Tiny Project'입니다. Arista cEOS 가상 환경 배포부터 SNMP v3 기반 Zabbix 감시 체계 구축, 그리고 Grafana 대시보드 연동까지의 전 과정을 단 하나의 스크립트로 자동화했습니다.
 
-본 프로젝트는 증권사 네트워크 환경을 모델링하여 Arista cEOS 기반의 인프라를 구축하고, Ansible 및 Zabbix/Grafana를 연동하여 운영 자동화와 가시성을 확보하는 **NetDevOps 실무 환경**을 구현합니다.
+## 주요 특징 (Key Highlights)
+One-Step Deployment: init_lab.py 실행만으로 네트워크 토폴로지 구성, Ansible 기반 장비 설정 생성, 모니터링 스택 배포가 완벽하게 수행됩니다.
+
+Infrastructure as Code (IaC):
+
+Ansible: 장비의 초기 설정 생성 및 SNMP v3 계정 등록을 자동화했습니다.
+
+Grafana Provisioning: GUI 조작 없이 YAML 설정을 통해 Zabbix 데이터 소스 연동 및 플러그인 활성화를 구현했습니다.
+
+Secure Monitoring: 보안이 강화된 SNMP v3를 사용하여 네트워크 장비의 실시간 상태(CPU, Traffic 등)를 수집합니다.
+
+Modern Observability: Zabbix 6.4 버전과 Grafana 최신 버전을 연동하여 데이터 수집부터 시각화까지의 표준 파이프라인을 구축했습니다.
 
 ## 1. Network Topology
 
