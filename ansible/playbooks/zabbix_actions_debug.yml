@@ -1,4 +1,13 @@
-- name: 액션 생성 상세 결과 확인
+---
+- name: Zabbix Action 생성 디버깅
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - ../inventory/all.yml
+    - ../inventory/group_vars/secrets.yml
+
+  tasks:
+    - name: 액션 생성 상세 결과 확인
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -7,9 +16,9 @@
           jsonrpc: "2.0"
           method: "action.create"
           params:
-            name: "NextSec_Unified_Action" # 이름을 바꿔서 중복 회피
-            eventsource: 0 # 트리거 기반 액션
-            status: 0 # 활성화 상태
+            name: "NextSec_Jitter_Action_Debug"
+            eventsource: 0
+            status: 0
             filter:
               evaltype: 0
               conditions:
@@ -19,13 +28,23 @@
             operations:
               - operationtype: 0
                 opmessage:
-                  default_msg: 1
+                  default_msg: 0
+                  subject: "[NextSecurities] Jitter Alert"
+                  message: |
+                    ---
+                    - 장비명: {HOST.NAME}
+                    - 심각도: {TRIGGER.SEVERITY}
+                    - 지터측정치: {ITEM.VALUE}
+                    - 발생시각: {EVENT.DATE} {EVENT.TIME}
                 opmessage_grp:
-                  - usrgrpid: "7" # Admin 그룹 ID (환경에 따라 다를 수 있음)
+                  - usrgrpid: "7" # Admin 그룹 ID 확인 필요
+                opmessage_mediatype:
+                  mediatypeid: "3" # 앞서 생성한 슬랙 미디어 ID 확인 필요
           auth: "{{ zabbix_token }}"
-          id: 32
+          id: 1
       register: action_debug_result
+      ignore_errors: no # 에러 원인을 보기 위해 no로 설정
 
-    - name: API 응답 출력
+    - name: API 응답 결과 출력
       ansible.builtin.debug:
         var: action_debug_result.json
