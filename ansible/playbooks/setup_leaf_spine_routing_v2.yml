@@ -1,56 +1,59 @@
 ---
-- name: NextSecurities Leaf-Spine 인프라 및 멀티캐스트 자동화
+- name: NextSecurities Leaf-Spine 인프라 및 멀티캐스트 자동화 (V3)
   hosts: arista
   gather_facts: no
   connection: network_cli
 
   tasks:
-    - name: 1. 인터페이스 IP 및 L3 라우팅 활성화
+    - name: 1. 전역 L3 라우팅 활성화
       arista.eos.eos_config:
         lines:
-          - ip routing # 장비의 L3 라우팅 기능을 전역적으로 활성화
-          - interface Ethernet1
-          -  description {{ interfaces.Ethernet1.desc }}
-          -  ip address {{ interfaces.Ethernet1.ip }}
-          - interface Ethernet2
-          -  description {{ interfaces.Ethernet2.desc }}
-          -  ip address {{ interfaces.Ethernet2.ip }}
-          - interface Ethernet3
-          -  description {{ interfaces.Ethernet3.desc }}
-          -  ip address {{ interfaces.Ethernet3.ip }}
+          - ip routing # 전역 설정 모드에서 실행
         save_when: modified
 
-    - name: 2. OSPF (Internal Fabric) 설정
+    - name: 2. 인터페이스 IP 및 Description 설정 (정규화된 방식)
       arista.eos.eos_config:
+        # parents를 사용하여 인터페이스 모드로 진입함을 명시합니다
         lines:
-          - router ospf 1
-          -  router-id {{ ansible_host }} # 장비 식별을 위한 고유 ID (OOB IP 활용)
-          -  network 10.1.13.0/30 area 0 # Spine1-Leaf 간 점대점(P2P) 경로 수집
-          -  network 10.1.23.0/30 area 0 # Spine2-Leaf 간 점대점(P2P) 경로 수집
-          -  network 192.168.10.0/24 area 0 # 내부 서비스망 정보를 OSPF로 전파
-          -  max-lsa 12000 # 금융권 대규모 경로 수집 시 메모리 보호를 위한 상한선
-        save_when: modified
+          - description {{ item.value.desc }}
+          - ip address {{ item.value.ip }}
+        parents: "interface {{ item.key }}" # parents 옵션으로 모드 진입 보장
+      loop: "{{ interfaces | dict2items }}" # 인벤토리의 interfaces 사전형 데이터를 반복 실행
+      save_when: modified
 
-    - name: 3. iBGP (Spine Interconnect) 설정 - Spine 전용
+    - name: 3. OSPF (Internal Fabric) 설정
       arista.eos.eos_config:
         lines:
-          - router bgp 65001 # 내부 자율 시스템(AS) 번호 정의
-          -  bgp router-id {{ ansible_host }}
-          -  neighbor 10.1.12.{{ '2' if inventory_hostname == 'ceos1' else '1' }} remote-as 65001 # Spine간 피어링
-          -  neighbor 10.1.12.{{ '2' if inventory_hostname == 'ceos1' else '1' }} next-hop-self # 외부망 정보를 보낼 때 자신의 IP를 넥스트홉으로 지정
-          -  maximum-paths 2 # Active-Active 부하 분산을 위한 ECMP 경로 허용 개수
-        when: inventory_hostname in ['ceos1', 'ceos2']
-        save_when: modified
+          - router-id {{ ansible_host }}
+          - network 10.1.13.0/30 area 0
+          - network 10.1.23.0/30 area 0
+          - network 192.168.10.0/24 area 0
+          - max-lsa 12000
+        parents: router ospf 1 # OSPF 설정 모드 진입
+      save_when: modified
 
-    - name: 4. 멀티캐스트(PIM Sparse-Mode) 설정
+    - name: 4. iBGP (Spine Interconnect) 설정
       arista.eos.eos_config:
         lines:
-          - ip multicast-routing # 멀티캐스트 트래픽 포워딩 엔진 활성화
-          - ip pim rp-address 172.20.20.11 # 랑데부 포인트(ceos1) 지정 (원장 데이터 집중점)
-          - interface Ethernet1
-          -  ip pim sparse-mode # 필요한 수신자에게만 트래픽을 보내는 효율적 모드
-          - interface Ethernet2
-          -  ip pim sparse-mode
-          - interface Ethernet3
-          -  ip pim sparse-mode
-        save_when: modified
+          - bgp router-id {{ ansible_host }}
+          - neighbor 10.1.12.{{ '2' if inventory_hostname == 'ceos1' else '1' }} remote-as 65001
+          - neighbor 10.1.12.{{ '2' if inventory_hostname == 'ceos1' else '1' }} next-hop-self
+          - maximum-paths 2
+        parents: router bgp 65001 # BGP 설정 모드 진입
+      when: inventory_hostname in ['ceos1', 'ceos2']
+      save_when: modified
+
+    - name: 5. 멀티캐스트(PIM Sparse-Mode) 활성화
+      arista.eos.eos_config:
+        lines:
+          - ip pim sparse-mode
+        parents: "interface {{ item.key }}"
+      loop: "{{ interfaces | dict2items }}"
+      save_when: modified
+
+    - name: 6. 전역 멀티캐스트 설정
+      arista.eos.eos_config:
+        lines:
+          - ip multicast-routing
+          - ip pim rp-address 172.20.20.11
+      save_when: modified
