@@ -7,7 +7,7 @@
     - ../inventory/group_vars/secrets.yml
 
   tasks:
-    - name: 1. 통합 알림 Action 생성 (API 규격 최종 정규화)
+    - name: 1. 통합 알림 Action 생성 (복구 알림 규격 최종 교정)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -16,7 +16,7 @@
           jsonrpc: "2.0"
           method: "action.create"
           params:
-            name: "NextSec_Unified_Action_V4" # 충돌 방지를 위한 버전 업데이트
+            name: "NextSec_Unified_Action_V5" # 중복 방지를 위한 버전 업데이트
             eventsource: 0
             status: 0
             filter:
@@ -25,7 +25,7 @@
                 - conditiontype: 4  # Trigger severity
                   operator: 5       # is greater than or equal to
                   value: "3"        # Average 이상
-            # 장애 발생 시 알림 설정
+            # 장애 발생 시 알림 (mediatypeid 포함 가능)
             operations:
               - operationtype: 0
                 opmessage:
@@ -36,10 +36,10 @@
                     - 심각도: {TRIGGER.SEVERITY}
                     - 장애내용: {TRIGGER.NAME}
                     - 발생시각: {EVENT.DATE} {EVENT.TIME}
-                  mediatypeid: "43" # opmessage 내부 위치
+                  mediatypeid: "43" # 확인된 슬랙 미디어 ID
                 opmessage_grp:
-                  - usrgrpid: "7"
-            # 복구 시 알림 설정
+                  - usrgrpid: "7" # Zabbix administrators
+            # 복구 시 알림 (mediatypeid 제외)
             recovery_operations:
               - operationtype: 11 # Recovery message
                 opmessage:
@@ -50,7 +50,7 @@
                     - 장애 내용: {TRIGGER.NAME}
                     - 복구 시각: {EVENT.RECOVERY.DATE} {EVENT.RECOVERY.TIME}
                     - 상태: 정상 (OK)
-                  mediatypeid: "43" # recovery에서도 opmessage 내부로 이동
+                # mediatypeid를 삭제하여 API 거부 현상 해결
           auth: "{{ zabbix_token }}"
           id: 1
       register: action_result
@@ -60,5 +60,5 @@
 
     - name: 2. 실행 결과 확인
       ansible.builtin.debug:
-        msg: "Action 생성 및 복구 알림 설정이 완료되었습니다."
+        msg: "Action 생성 및 복구 알림 설정이 완료되었습니다. 이제 정상 등록될 것입니다."
       when: action_result.json.result is defined
