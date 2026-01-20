@@ -1,20 +1,23 @@
 ---
 
 [Project] Arista cEOS 기반 네트워크 자동화 및 통합 모니터링 스택 구축
-본 프로젝트는 금융권 네트워크 엔지니어에게 요구되는 인프라 가시성 확보와 운영 자동화 역량을 증명하기 위해 설계된 'Tiny Project'입니다. Arista cEOS 가상 환경 배포부터 SNMP v3 기반 Zabbix 감시 체계 구축, 그리고 Grafana 대시보드 연동까지의 전 과정을 단 하나의 스크립트로 자동화했습니다.
+본 프로젝트는 금융권 네트워크 엔지니어에게 요구되는 인프라 가시성 확보와 운영 자동화 역량을 증명하기 위한 'Tiny Project'입니다. Arista cEOS 가상 환경 배포부터 SNMP v3 기반 감시, 그리고 Zabbix API를 이용한 슬랙(Slack) 장애 전파 자동화까지의 전 과정을 IaC로 구현했습니다.
 
 ## 주요 특징 (Key Highlights)
+
 One-Step Deployment: init_lab.py 실행만으로 네트워크 토폴로지 구성, Ansible 기반 장비 설정 생성, 모니터링 스택 배포가 완벽하게 수행됩니다.
+
+Unified Alerting System: 장애 발생 시 단순 알림을 넘어, 운영자가 즉시 실행할 수 있는 **조치 가이드(Troubleshooting Guide)**가 포함된 슬랙 메시지를 자동 전송합니다.
+
+API-Driven Configuration: Zabbix UI 조작 없이 Ansible과 Zabbix API(V5 iteration)를 통해 Media Type, User Media, Action을 100% 코드로 관리합니다.
 
 Infrastructure as Code (IaC):
 
-Ansible: 장비의 초기 설정 생성 및 SNMP v3 계정 등록을 자동화했습니다.
+Ansible: 장비 설정, SNMP v3 등록 및 Zabbix 알림 체계 구축을 자동화했습니다.
 
-Grafana Provisioning: GUI 조작 없이 YAML 설정을 통해 Zabbix 데이터 소스 연동 및 플러그인 활성화를 구현했습니다.
+Grafana Provisioning: YAML 설정을 통해 데이터 소스 연동을 자동화했습니다.
 
-Secure Monitoring: 보안이 강화된 SNMP v3를 사용하여 네트워크 장비의 실시간 상태(CPU, Traffic 등)를 수집합니다.
-
-Modern Observability: Zabbix 6.4 버전과 Grafana 최신 버전을 연동하여 데이터 수집부터 시각화까지의 표준 파이프라인을 구축했습니다.
+Advanced Monitoring Logic: ICMP Jitter 계산(Standard Deviation 활용) 및 인터페이스 상태(err-disabled) 감시를 통해 정밀한 원장망 가용성을 측정합니다.
 
 ## 1. Network Topology
 
@@ -68,7 +71,8 @@ Modern Observability: Zabbix 6.4 버전과 Grafana 최신 버전을 연동하여
 * **Network OS**: Arista cEOS (v4.35.1F)
 * **Orchestration**: Containerlab (v0.72.0+)
 * **Automation**: Ansible (v12.3.0 / Core 2.19.5)
-* **Monitoring**: Zabbix (SNMPv3), Grafana (Visualization)
+* **Monitoring**: Zabbix (SNMPv3, API Integration), Grafana (Visualization)
+* **Notification: Slack API (Incoming Webhooks)
 * **Infrastructure**: AWS EC2 (Ubuntu 24.04 LTS) or WSL2
 * **Languages**: Python 3.10+ (Custom venv)
 
@@ -85,7 +89,9 @@ Modern Observability: Zabbix 6.4 버전과 Grafana 최신 버전을 연동하여
 │   │   ├── inventory.yml     # cEOS 장비 및 그룹 정의
 │   │   └── group_vars/
 │   │       └── all.yml       # Zabbix Token, SNMPv3 유저 등 공통 변수
-│   └── playbooks/            # 기능별 플레이북
+│   └── playbooks/
+│       ├── config_NTP.yml, config_NTP.yml, register_zabbix.yml # 네트워크장비 기본세팅 및 zabbix 등록 
+│       └── setup_zabbix_jitter_monitoring.yml                  # err-disabled 감시 및 jitter 임계값 이상에 대한 slack 알림 구현
 ├── docker/
 │   ├── ceos-lab/             # Data Plane: Containerlab 토폴로지 설계도
 │   └── monitoring/           # Management Plane: Zabbix, Grafana (Docker Compose)
