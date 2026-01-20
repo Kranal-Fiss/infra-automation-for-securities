@@ -1,0 +1,88 @@
+---
+- name: NextSecurities 통합 장애 알림 시스템 구축
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - ../inventory/all.yml #
+
+  tasks:
+    - name: 1. 통합 알림 전용 슬랙 미디어 타입 생성
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php" #
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "mediatype.create"
+          params:
+            name: "NextSec_Unified_Slack_Bot"
+            type: 4
+            script: |
+              var Slack = {
+                  params: {},
+                  setParams: function (params) { Slack.params = params; },
+                  sendMessage: function () {
+                      var request = new HttpRequest();
+                      request.addHeader('Content-Type: application/json');
+                      return request.post(Slack.params.url, JSON.stringify({
+                          text: Slack.params.subject + "\n" + Slack.params.message
+                      }));
+                  }
+              };
+              try {
+                  Slack.setParams(JSON.parse(value));
+                  return Slack.sendMessage();
+              } catch (e) { return 'Error: ' + e; }
+            parameters:
+              - name: url
+                value: "{{ slack_webhook_url }}"
+              - name: subject
+                value: "--- [NextSecurities] 네트워크 경보 발령 ---"
+              - name: message
+                value: "{ALERT.MESSAGE}"
+          auth: "{{ zabbix_token }}" #
+          id: 30
+      ignore_errors: yes
+
+    - name: 2. 통합 알림 Action 생성 (Jitter 및 Port 상태 포함)
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php" #
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "action.create"
+          params:
+            name: "Unified Alert for Network Team"
+            eventsource: 0
+            status: 0
+            filter:
+              evaltype: 0
+              conditions:
+                - conditiontype: 5 # Trigger value = PROBLEM
+                  operator: 0
+                  value: "1"
+            operations:
+              - operationtype: 0
+                opmessage:
+                  default_msg: 0
+                  subject: "--- 네트워크 장애 및 품질 저하 알림 ---"
+                  message: |
+                    ---
+                    - 장비명: {HOST.NAME}
+                    - 심각도: {TRIGGER.SEVERITY}
+                    - 장애내용: {TRIGGER.NAME}
+                    - 현재상태: {ITEM.VALUE}
+                    - 발생시각: {EVENT.DATE} {EVENT.TIME}
+                    
+                    관련 가이드: 
+                    1. Jitter 수치 이상 시: cEOS 인터페이스 및 CPU 부하 점검
+                    2. Port Down/err-disabled 발생 시: SSH 접속 후 'show interfaces status err-disabled' 실행
+                    3. 복구 시도: 해당 인터페이스 'shutdown' 후 'no shutdown' 수행
+                opmessage_grp:
+                  - usrgrpid: "7"
+                opmessage_mediatype:
+                  mediatypeid: "3" # 환경에 맞게 조정 필요
+          auth: "{{ zabbix_token }}" #
+          id: 31
+      ignore_errors: yes
