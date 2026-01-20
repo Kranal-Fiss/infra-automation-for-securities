@@ -7,7 +7,7 @@
     - ../inventory/group_vars/secrets.yml
 
   tasks:
-    - name: 1. 통합 알림 Action 생성 (필터 최적화)
+    - name: 1. 통합 알림 Action 생성 (API 파라미터 구조 수정)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -24,9 +24,9 @@
               conditions:
                 - conditiontype: 4  # Trigger severity
                   operator: 5       # is greater than or equal to
-                  value: "3"        # Average (주황색) 이상의 장애만 알림
+                  value: "3"        # Average 이상
             operations:
-              - operationtype: 0
+              - operationtype: 0    # Send message
                 opmessage:
                   default_msg: 0
                   subject: "--- Network Issue Detected ---"
@@ -40,14 +40,12 @@
                     조치 가이드: 
                     1. Jitter 수치 이상 시: cEOS 인터페이스 및 CPU 부하 점검
                     2. Port err-disabled 발생 시: show interfaces status err-disabled 명령어로 원인 파악
+                  mediatypeid: "3"  # opmessage 내부로 이동
                 opmessage_grp:
                   - usrgrpid: "7"    # Zabbix administrators 그룹 ID
-                opmessage_mediatype:
-                  mediatypeid: "3"   # NextSec_Unified_Slack_Bot의 ID
           auth: "{{ zabbix_token }}"
           id: 1
       register: action_result
-      # Zabbix API 에러 발생 시 Ansible이 실패(red)로 표시하도록 설정
       failed_when: 
         - action_result.json.error is defined
         - "'already exists' not in action_result.json.error.data" 
