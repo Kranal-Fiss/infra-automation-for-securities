@@ -3,7 +3,8 @@ all:
     ansible_python_interpreter: "./venv/bin/python"
 
   children:
-    arista:
+    # 1. Spine 그룹: ceos1과 ceos2를 배치하여 BGP 및 Cloud 연동을 담당합니다.
+    spine:
       hosts:
         ceos1:
           ansible_host: 172.20.20.11
@@ -16,7 +17,12 @@ all:
           interfaces:
             Ethernet1: { ip: "10.1.12.2/30", desc: "TO_CEOS1" }
             Ethernet2: { ip: "10.1.23.1/30", desc: "TO_CEOS3" }
-            Ethernet3: { ip: "172.16.2.1/30", desc: "CLOUD_UPLINK_B" }
+            # Active-Active 구성을 위해 구성도(image_5c46e3.png)에 맞게 172.16.1.2/30로 정정
+            Ethernet3: { ip: "172.16.1.2/30", desc: "CLOUD_UPLINK_B" }
+
+    # 2. Leaf 그룹: ceos3를 배치하여 내부 서비스망 게이트웨이 역할을 수행합니다.
+    leaf:
+      hosts:
         ceos3:
           ansible_host: 172.20.20.13
           interfaces:
@@ -24,18 +30,24 @@ all:
             Ethernet2: { ip: "10.1.23.2/30", desc: "TO_CEOS2" }
             Ethernet3: { ip: "192.168.10.1/24", desc: "INTERNAL_LAN" }
 
+    # 3. Arista 전체 그룹: 공통 보안 및 접속 변수를 관리합니다.
+    arista:
+      children:
+        spine:
+        leaf:
       vars:
-        # 요청하신 보안 파라미터 적용
+        # SSH 접속 정보
         ansible_user: "admin"
         ansible_password: "admin123"
         ansible_become_password: "admin123"
         
+        # SNMPv3 보안 설정
         snmp_user: "admin"
         snmp_group: "snmpv3"
         snmp_auth_pw: "admin123"
         snmp_priv_pw: "admin123"
 
-        # 연결 설정
+        # 네트워크 연결 설정
         ansible_network_os: arista.eos.eos
         ansible_connection: network_cli
         ansible_ssh_private_key_file: "~/.ssh/ansible_id_rsa"
