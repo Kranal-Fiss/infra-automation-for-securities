@@ -1,5 +1,5 @@
 ---
-- name: NextSecurities Leaf-Spine 인프라 및 멀티캐스트 자동화 (V3)
+- name: NextSecurities Leaf-Spine 인프라 및 멀티캐스트 자동화 (V4)
   hosts: arista
   gather_facts: no
   connection: network_cli
@@ -8,52 +8,61 @@
     - name: 1. 전역 L3 라우팅 활성화
       arista.eos.eos_config:
         lines:
-          - ip routing # 전역 설정 모드에서 실행
-        save_when: modified
+          - ip routing
+        save_when: modified # 모듈 안으로 들여쓰기 확인
 
-    - name: 2. 인터페이스 IP 및 Description 설정 (정규화된 방식)
+    - name: 2. 인터페이스 IP 및 Description 설정
       arista.eos.eos_config:
-        # parents를 사용하여 인터페이스 모드로 진입함을 명시합니다
         lines:
           - description {{ item.value.desc }}
           - ip address {{ item.value.ip }}
-        parents: "interface {{ item.key }}" # parents 옵션으로 모드 진입 보장
-      loop: "{{ interfaces | dict2items }}" # 인벤토리의 interfaces 사전형 데이터를 반복 실행
-      save_when: modified
+        parents: "interface {{ item.key }}" # 특정 인터페이스 모드 진입
+        save_when: modified
+      loop: "{{ interfaces | dict2items }}" # 인벤토리의 interfaces 정보를 반복 처리
 
     - name: 3. OSPF (Internal Fabric) 설정
       arista.eos.eos_config:
         lines:
+          # router-id: OSPF 프로세스 내 장비 고유 식별자. 관리 IP(OOB)를 사용하여 추적성 확보
           - router-id {{ ansible_host }}
+          # network area 0: Spine-Leaf 간 P2P 링크 및 내부망 정보를 백본 영역(Area 0)으로 통합하여 고속 수렴 유도
           - network 10.1.13.0/30 area 0
           - network 10.1.23.0/30 area 0
           - network 192.168.10.0/24 area 0
+          # max-lsa: 대규모 라우팅 정보 유입 시 메모리 고갈을 방지하는 안전장치
           - max-lsa 12000
-        parents: router ospf 1 # OSPF 설정 모드 진입
-      save_when: modified
+        parents: router ospf 1
+        save_when: modified
 
     - name: 4. iBGP (Spine Interconnect) 설정
       arista.eos.eos_config:
         lines:
+          # bgp router-id: BGP 세션 식별자
           - bgp router-id {{ ansible_host }}
+          # remote-as: 동일 AS 번호(65001)를 사용하여 Spine 간 iBGP 피어링 형성
           - neighbor 10.1.12.{{ '2' if inventory_hostname == 'ceos1' else '1' }} remote-as 65001
+          # next-hop-self: 외부망 정보를 동료 Spine에게 넘길 때, 자신의 IP를 넥스트홉으로 지정하여 도달성 보장
           - neighbor 10.1.12.{{ '2' if inventory_hostname == 'ceos1' else '1' }} next-hop-self
+          # maximum-paths: ECMP 활성화. 외부망(Cloud) 방향 트래픽을 Active-Active로 부하 분산
           - maximum-paths 2
-        parents: router bgp 65001 # BGP 설정 모드 진입
-      when: inventory_hostname in ['ceos1', 'ceos2']
-      save_when: modified
+        parents: router bgp 65001
+        save_when: modified
+      when: "'spine' in group_names" # Spine 그룹 장비(ceos1, ceos2)에만 적용
 
-    - name: 5. 멀티캐스트(PIM Sparse-Mode) 활성화
+    - name: 5. 멀티캐스트(PIM Sparse-Mode) 인터페이스 설정
       arista.eos.eos_config:
         lines:
+          # sparse-mode: 요청이 있는 수신자에게만 트래픽을 복제하여 대역폭 낭비 방지 (원장 데이터 전송 최적화)
           - ip pim sparse-mode
         parents: "interface {{ item.key }}"
+        save_when: modified
       loop: "{{ interfaces | dict2items }}"
-      save_when: modified
 
-    - name: 6. 전역 멀티캐스트 설정
+    - name: 6. 전역 멀티캐스트 및 RP 설정
       arista.eos.eos_config:
         lines:
+          # ip multicast-routing: 하드웨어 멀티캐스트 포워딩 엔진 활성화
           - ip multicast-routing
+          # ip pim rp-address: 랑데부 포인트(RP) 지정. 모든 멀티캐스트 정보가 집결되는 ceos1 주소 설정
           - ip pim rp-address 172.20.20.11
-      save_when: modified
+        save_when: modified
