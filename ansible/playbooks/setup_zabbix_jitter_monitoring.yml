@@ -7,7 +7,7 @@
     - ../inventory/group_vars/secrets.yml
 
   tasks:
-    - name: 1. 통합 알림 Action 생성 (API 파라미터 구조 수정)
+    - name: 1. 통합 알림 Action 생성 (ID 수정 및 복구 알림 추가)
       ansible.builtin.uri:
         url: "{{ zabbix_url }}/api_jsonrpc.php"
         method: POST
@@ -16,7 +16,7 @@
           jsonrpc: "2.0"
           method: "action.create"
           params:
-            name: "NextSec_Unified_Action"
+            name: "NextSec_Unified_Action_V2" # 중복 방지를 위해 이름 변경
             eventsource: 0
             status: 0
             filter:
@@ -25,8 +25,9 @@
                 - conditiontype: 4  # Trigger severity
                   operator: 5       # is greater than or equal to
                   value: "3"        # Average 이상
+            # [장애 발생 시 알림]
             operations:
-              - operationtype: 0    # Send message
+              - operationtype: 0
                 opmessage:
                   default_msg: 0
                   subject: "--- Network Issue Detected ---"
@@ -34,15 +35,22 @@
                     - 장비명: {HOST.NAME}
                     - 심각도: {TRIGGER.SEVERITY}
                     - 장애내용: {TRIGGER.NAME}
-                    - 현재상태: {ITEM.VALUE}
                     - 발생시각: {EVENT.DATE} {EVENT.TIME}
-                    
-                    조치 가이드: 
-                    1. Jitter 수치 이상 시: cEOS 인터페이스 및 CPU 부하 점검
-                    2. Port err-disabled 발생 시: show interfaces status err-disabled 명령어로 원인 파악
-                  mediatypeid: "3"  # opmessage 내부로 이동
+                  mediatypeid: "43"  # 확인된 ID 반영
                 opmessage_grp:
-                  - usrgrpid: "7"    # Zabbix administrators 그룹 ID
+                  - usrgrpid: "7"
+            # [장애 복구 시 알림 추가]
+            recovery_operations:
+              - operationtype: 11 # Recovery message
+                opmessage:
+                  default_msg: 0
+                  subject: "--- Network Issue Resolved ---"
+                  message: |
+                    - 복구 장비: {HOST.NAME}
+                    - 장애 내용: {TRIGGER.NAME}
+                    - 복구 시각: {EVENT.RECOVERY.DATE} {EVENT.RECOVERY.TIME}
+                    - 상태: 정상 (OK)
+                  mediatypeid: "43"  # 확인된 ID 반영
           auth: "{{ zabbix_token }}"
           id: 1
       register: action_result
@@ -52,5 +60,4 @@
 
     - name: 2. 실행 결과 확인
       ansible.builtin.debug:
-        msg: "Action 생성에 성공하였습니다. Zabbix UI를 확인하세요."
-      when: action_result.json.result is defined
+        msg: "Action 생성 및 복구 알림 설정이 완료되었습니다."
