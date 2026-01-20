@@ -48,9 +48,13 @@ topology:
       kind: bridge
 
   links:
-    - endpoints: ["ceos1:eth1", "ceos2:eth1"]
-    - endpoints: ["ceos2:eth2", "ceos3:eth1"]
-    - endpoints: ["ceos3:eth2", "ceos1:eth2"]
+    - endpoints: ["ceos1:eth1", "ceos2:eth1"] # 10.1.12.0/30 대역 (기존과 동일)
+    
+    # 교정된 부분: ceos1(Et2)은 ceos3(Et1)과 만나야 10.1.13.0/30 대역이 성립됩니다.
+    - endpoints: ["ceos1:eth2", "ceos3:eth1"]
+    
+    # 교정된 부분: ceos2(Et2)는 ceos3(Et2)와 만나야 10.1.23.0/30 대역이 성립됩니다.
+    - endpoints: ["ceos2:eth2", "ceos3:eth2"]
 
     - endpoints: ["ceos1:eth3", "br-cloud:p1-c"]
     - endpoints: ["ceos2:eth3", "br-cloud:p2-c"]
