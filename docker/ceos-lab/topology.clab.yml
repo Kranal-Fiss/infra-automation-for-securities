@@ -6,6 +6,7 @@ mgmt:
 
 topology:
   nodes:
+    # Arista cEOS 라우터 설정
     ceos1:
       kind: ceos
       image: ceos-lab:4.35.1F
@@ -41,21 +42,41 @@ topology:
         SKIP_REBOOT: 1
       binds:
         - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
-      
+
+    # 테스트용 Linux 호스트 설정
+    cloud-host:
+      kind: linux
+      image: alpine:latest
+      exec:
+        - ip addr add 172.16.1.10/24 dev eth1
+        - ip route add default via 172.16.1.254
+        - apk add --no-cache iproute2 socat tcpdump
+
+    internal-host:
+      kind: linux
+      image: alpine:latest
+      exec:
+        - ip addr add 192.168.10.10/24 dev eth1
+        - ip route add default via 192.168.10.1
+        - apk add --no-cache iproute2 socat tcpdump
+
+    # L2 브리지 설정
     br-cloud:
       kind: bridge
     br-internal:
       kind: bridge
 
   links:
-    - endpoints: ["ceos1:eth1", "ceos2:eth1"] # 10.1.12.0/30 대역 (기존과 동일)
-    
-    # 교정된 부분: ceos1(Et2)은 ceos3(Et1)과 만나야 10.1.13.0/30 대역이 성립됩니다.
-    - endpoints: ["ceos1:eth2", "ceos3:eth1"]
-    
-    # 교정된 부분: ceos2(Et2)는 ceos3(Et2)와 만나야 10.1.23.0/30 대역이 성립됩니다.
-    - endpoints: ["ceos2:eth2", "ceos3:eth2"]
+    # 1. 라우터 간 백본 연결 (Triangle)
+    - endpoints: ["ceos1:eth1", "ceos2:eth1"] # 10.1.12.0/30
+    - endpoints: ["ceos1:eth2", "ceos3:eth1"] # 10.1.13.0/30
+    - endpoints: ["ceos2:eth2", "ceos3:eth2"] # 10.1.23.0/30
 
+    # 2. Cloud 영역 연결 (L2 Bridge 공유)
     - endpoints: ["ceos1:eth3", "br-cloud:p1-c"]
     - endpoints: ["ceos2:eth3", "br-cloud:p2-c"]
+    - endpoints: ["cloud-host:eth1", "br-cloud:p3-c"]
+
+    # 3. Internal 영역 연결
     - endpoints: ["ceos3:eth3", "br-internal:p1-i"]
+    - endpoints: ["internal-host:eth1", "br-internal:p2-i"]

@@ -1,0 +1,13 @@
+---
+- name: Configure VARP Active-Active Gateway
+  hosts: ceos1, ceos2
+  gather_facts: false
+  tasks:
+    - name: Set Global Virtual MAC
+      arista.eos.eos_config:
+        lines: "ip virtual-router mac-address {{ ha_virtual_mac }}"
+
+    - name: Configure VARP VIP on Cloud Interface
+      arista.eos.eos_config:
+        lines: "ip virtual-router address {{ cloud_vip }}"
+        parents: interface Ethernet3
