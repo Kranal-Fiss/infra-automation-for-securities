@@ -1,5 +1,5 @@
 ---
-- name: NextSecurities Leaf-Spine 인프라 및 멀티캐스트 자동화 (V5)
+- name: NextSecurities Leaf-Spine 인프라 및 멀티캐스트 자동화 (V6)
   hosts: arista
   gather_facts: no
   connection: network_cli
@@ -31,11 +31,11 @@
         parents: router ospf 1
         save_when: modified
 
-    - name: 4. iBGP (Spine Interconnect) 설정
+    - name: 4. iBGP (Spine Interconnect) 설정 (문법 교정)
       arista.eos.eos_config:
         lines:
-          # Arista BGP 모드에서는 'bgp' 접두사 없이 'router-id'만 사용합니다
-          - router-id {{ ansible_host }} 
+          # EOS BGP 컨텍스트 내에서 bgp 접두사를 포함한 전체 명령어를 사용합니다
+          - bgp router-id {{ ansible_host }}
           - neighbor 10.1.12.{{ '2' if inventory_hostname == 'ceos1' else '1' }} remote-as 65001
           - neighbor 10.1.12.{{ '2' if inventory_hostname == 'ceos1' else '1' }} next-hop-self
           - maximum-paths 2
