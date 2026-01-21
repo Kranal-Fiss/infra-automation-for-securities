@@ -5,33 +5,34 @@
 
   tasks:
     - name: 3.1. BGP 기본 프로세스 및 Router-ID 설정
-      arista.eos.eos_bgp_global:
-        config:
-          as: "{{ bgp_as }}"
-          router_id: "{{ loopback_ip | ipaddr('address') }}"
+      arista.eos.eos_config:
+        lines:
+          - router bgp {{ bgp_as }}
+          - router-id {{ loopback_ip.split('/')[0] }}
+          - bgp cluster-id 1.1.1.1  # 이중화 구성을 위한 클러스터 ID (선택사항)
+          - no bgp default ipv4-unicast
 
     - name: 3.2. iBGP 이웃(Neighbor) 설정 (Loopback 기반)
       arista.eos.eos_config:
         lines:
-          # 각 장비가 자신의 루프백을 통해 서로 피어링을 맺도록 설정
+          # ceos1 (1.1.1.1) 설정
           - neighbor 1.1.1.1 remote-as {{ bgp_as }}
           - neighbor 1.1.1.1 update-source Loopback0
           - neighbor 1.1.1.1 description PEER_TO_CEOS1
+          # ceos2 (2.2.2.2) 설정
           - neighbor 2.2.2.2 remote-as {{ bgp_as }}
           - neighbor 2.2.2.2 update-source Loopback0
           - neighbor 2.2.2.2 description PEER_TO_CEOS2
+          # ceos3 (3.3.3.3) 설정
           - neighbor 3.3.3.3 remote-as {{ bgp_as }}
           - neighbor 3.3.3.3 update-source Loopback0
           - neighbor 3.3.3.3 description PEER_TO_CEOS3
         parents: router bgp {{ bgp_as }}
-      # 자기 자신과는 피어링을 맺지 않도록 예외 처리하거나 장비별로 필터링 가능
-      # 여기서는 단순화를 위해 전체 입력 후 장비가 스스로 무시하게 두거나 
-      # 실제 운영 환경에선 host_vars에 neighbor 리스트를 두는 것이 좋습니다.
 
-    - name: 3.3. ECMP(Maximum-Paths) 활성화
+    - name: 3.3. ECMP(Maximum-Paths) 및 Next-Hop-Self 설정
       arista.eos.eos_config:
         lines:
-          - maximum-paths 2  # 동일 비용 경로를 최대 2개까지 동시 사용
+          - maximum-paths 2
           - neighbor 1.1.1.1 next-hop-self
           - neighbor 2.2.2.2 next-hop-self
           - neighbor 3.3.3.3 next-hop-self
