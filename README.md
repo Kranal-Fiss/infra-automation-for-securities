@@ -1,3 +1,5 @@
+---
+
 # [Project] Arista cEOS 기반 고가용성 멀티캐스트 망 자동화 및 통합 모니터링 구축
 
 본 프로젝트는 금융권 네트워크 인프라에서 필수적인 고가용성(HA) 확보, 실시간 멀티캐스트 데이터 배달, 그리고 운영 자동화 역량을 증명하기 위한 통합 네트워크 랩입니다. Arista cEOS 가상 환경을 기반으로 L3 게이트웨이 이중화(VARP)와 멀티캐스트(PIM-SM)를 구현하였으며, SNMP v3 기반의 Zabbix/Grafana 모니터링 및 Slack 장애 전파 시스템을 IaC로 통합 구축했습니다.
@@ -107,20 +109,20 @@ Testing Tools: Alpine Linux, socat (Multicast Testing), tcpdump
 │   │   └── group_vars/
 │   │       └── all.yml       # Zabbix Token, SNMPv3 유저, VARP MAC 등 공통 변수
 │   └── playbooks/
-│       ├── config_underlay.yml     # OSPF 및 기본 IP 설정
-│       ├── config_ha_gateway.yml   # VARP 기반 Active-Active GW 설정
-│       ├── config_multicast.yml    # PIM-SM 및 IGMP 설정
-│       ├── register_zabbix.yml     # Zabbix API 기반 호스트 등록
-│       └── setup_monitoring.yml    # Jitter 감시 및 Slack 알림 체계 구축
+│       ├── 00_generate_configs.yml     # Day 0: Bootstrap 설정 생성
+│       ├── 00-1_config_ntp.yml         # 기초: 시간 동기화
+│       ├── 00-2_config_snmp.yml        # 기초: SNMPv3 보안 설정
+│       ├── 01_config_underlay.yml      # 인프라: OSPF 및 IP 구축
+│       ├── 02_config_ha_gateway.yml    # 가용성: VARP Active-Active 설정
+│       ├── 03_config_bgp_ecmp.yml      # 확장: iBGP 및 ECMP 부하분산
+│       ├── 04_config_multicast.yml     # 서비스: PIM-SM 및 IGMP 설정
+│       └── 05_register_monitoring.yml  # 운영: Zabbix API 등록 및 Slack 연동
 ├── docker/
 │   ├── ceos-lab/             # Data Plane: Containerlab 토폴로지 설계도
 │   └── monitoring/           # Management Plane: Zabbix, Grafana (Docker Compose)
 └── README.md
 
 ```
-
----
-
 ## 4. Getting Started
 
 ### Step 1. 환경 세팅 및 의존성 설치
@@ -129,23 +131,28 @@ chmod +x setup_env.sh && ./setup_env.sh
 source venv/bin/activate
 ./init_lab.py
 
-### Step 2. 모니터링 스택 구동 및 호스트 등록
-Zabbix 서버를 실행한 후, API 토큰을 발급받아 인벤토리에 업데이트한 뒤 등록 플레이북을 실행합니다.
+#### 정상 구동 검증 containerlab topology 구성 확인
+sudo clab graph -t ./docker/ceos-lab/topology.clab.yml 
 
-Bash
+### Step 2. 인프라 설정 (Day 1)
+# [1] 기초 시스템 설정: 시간 동기화 및 모니터링 보안 채널(SNMPv3) 확보
+ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/00-1_config_ntp.yml 
+ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/00-2_config_snmp.yml
+
+# [2] 네트워크 뼈대 구축: OSPF 언더레이를 통한 루프백 도달성 확보
+ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/01_config_underlay.yml
+
+# [3] 고가용성 및 라우팅 확장: VARP 게이트웨이 및 iBGP ECMP 설정
+ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/02_config_ha_gateway.yml
+ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/03_config_bgp_ecmp.yml
+
+### Step 3. 서비스 활성화 및 모니터링 통합 (Day 2)
+# [4] 서비스 주입: 금융 데이터 전송을 위한 Multicast(PIM-SM) 활성화
+ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/04_config_multicast.yml
+
+# [5] 운영 통합: Zabbix API 연동 및 장애 알림(slack) 자동화
 docker compose -f ./docker/monitoring/docker-compose.yml up -d
-ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/register_zabbix.yml
-
-### Step 3. 인프라 설정 및 가용성 검증
-Bash
-ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/config_ha_gateway.yml
-ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/config_multi
-
-
-
-*정상 동작 확인을 통해 전체 환경 구성의 적절성 여부를 최종 체크합니다.*
-
----
+ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/05_register_monitoring.yml
 
 ## 5. 핵심 설계 및 검증 포인트 (Architecture Points)
 1) VARP 기반 고가용성 (L3 Redundancy)
@@ -158,6 +165,26 @@ PIM-SM 아키텍처에서 소스 등록 및 SPT(Shortest Path Tree) 전환 과�
 동일 비용 다중 경로(ECMP) 설정을 통해 업링크 트래픽을 분산 처리함으로써 네트워크 자원 활용도를 극대화하고 전용 회선의 혼잡을 방지하는 구조를 설계했습니다.
 
 4) AWS 하이브리드 확장성 (Future Vision)
-본 프로젝트에서 검증된 논리는 AWS Transit Gateway(TGW)의 Anycast 게이트웨이 및 Direct Connect(DX) ECMP 설계로 확장 가능합니다. 온프레미스 멀티캐스트 소스를 TGW Multicast Domain과 연동하여 하이브리드 클라우드 전 구간에 실시간 데이터를 배달하는 차세대 금융 망 설계안을 포함하고 있습니다.
+본 프로젝트에서 검증된 논리는 On-premise와 Cloud 간의 일관된 IaC 운영 모델을 제시하고 있습니다. AWS Transit Gateway(TGW)의 Anycast 게이트웨이 및 Direct Connect(DX) ECMP 설계로 확장 가능합니다. 
+온프레미스 멀티캐스트 소스를 TGW Multicast Domain과 연동하여 하이브리드 클라우드 전 구간에 실시간 데이터를 배달하는 차세대 금융 망 설계안을 포함하고 있습니다.
+
+## 6. Verification Commands (검증 가이드)
+설정 후 정상 동작 여부를 확인하기 위한 주요 커맨드입니다.
+
+1) L3 인터페이스 활성화 확인
+   - `show ip interface brief` (Et1~3가 up/up 인지 확인)
+2) OSPF 및 BGP 인접 관계 확인
+   - `show ip ospf neighbor`
+   - `show ip bgp summary`
+3) VARP 가상 게이트웨이 동작 확인
+   - `show ip virtual-router` (Virtual IP address가 보여야 함)
+
+4) VARP 상태 확인: show ip virtual-router (Active-Active 확인)
+
+5) 멀티캐스트 트리 확인: show ip mroute (SPT 생성 확인)
+
+6) ECMP 경로 확인: show ip route ospf (동일 비용 다중 경로 확인)
+
+7) SNMP 동작 확인: snmpwalk -v3 -u admin ... (모니터링 데이터 수집 확인)
 
 ---
