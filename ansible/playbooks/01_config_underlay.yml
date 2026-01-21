@@ -30,7 +30,7 @@
         config:
           processes:
             - process_id: 1
-              router_id: "{{ loopback_ip | ipaddr('address') }}"
+              router_id: "{{ loopback_ip.split('/')[0] }}"
               max_lsa: 12000
 
     - name: 1.5. OSPF Area 0 네트워크 선언 (Fabric 전 구간)
