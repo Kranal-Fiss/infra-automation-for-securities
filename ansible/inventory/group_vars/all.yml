@@ -1,24 +1,32 @@
-# 1. Zabbix 접속 정보
+# 1. SSH 접속 및 환경 설정
+ansible_connection: "network_cli"
+ansible_network_os: "arista.eos.eos"
+ansible_user: "admin"
+ansible_password: "admin123"
+ansible_become: yes
+ansible_become_method: "enable"
+ansible_become_password: "admin123"
+ansible_ssh_private_key_file: "~/.ssh/ansible_id_rsa"
+ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+ansible_python_interpreter: "./venv/bin/python"
+
+# 2. Zabbix 접속 정보
 zabbix_url: "http://127.0.0.1:8081"
 zabbix_token: "0f169ea2b3bce3dac0ed45199291b84e43b1a7900e0c4b4effb3e4d1a8f98c64"
-
-# 2. SNMP 및 Zabbix 그룹 설정
 zabbix_host_group: "NextSecurities_Network_Switches"
 zabbix_template: "Arista by SNMP"
 
-# SNMPv3 유저 정보
+# 3. SNMPv3 보안 프로토콜 설정
 snmp_user: "admin"
+snmp_group: "snmpv3"
 snmp_auth_pass: "admin123"
 snmp_priv_pass: "admin123"
 snmp_security_level: "authPriv"
 snmp_auth_protocol: "SHA"
 snmp_priv_protocol: "AES"
 
-# 3. 보편적 SSH 접속 및 환경 설정
-ansible_user: "admin"
-ansible_ssh_private_key_file: "{{ lookup('env', 'HOME') }}/.ssh/ansible_id_rsa"
-ansible_connection: "network_cli"
-ansible_network_os: "arista.eos.eos"
-ansible_python_interpreter: "./venv/bin/python"
-ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-
+# 4. 네트워크 아키텍처 변수 (HA, Multicast, BGP)
+ha_virtual_mac: "00:1c:73:00:00:99"
+cloud_vip: "172.16.1.254/24"
+rp_address: "1.1.1.1" # ceos1 Loopback
+bgp_as: 65100

@@ -1,0 +1,43 @@
+---
+- name: Step 1. Underlay 인프라 자동화 (IP & OSPF)
+  hosts: arista
+  gather_facts: no
+  vars_files:
+    - "../inventory/group_vars/secrets.yml" # 보안 변수 파일 로드
+
+  tasks:
+    - name: 1.1. 전역 L3 라우팅 활성화
+      arista.eos.eos_config:
+        lines: "ip routing"
+
+    - name: 1.2. Loopback0 인터페이스 설정
+      arista.eos.eos_l3_interfaces:
+        config:
+          - name: Loopback0
+            ipv4:
+              - address: "{{ loopback_ip }}"
+
+    - name: 1.3. 물리 인터페이스 IP 및 Description 주입
+      arista.eos.eos_config:
+        lines:
+          - description {{ item.value.desc }}
+          - ip address {{ item.value.ip }}
+        parents: "interface {{ item.key }}"
+      loop: "{{ interfaces | dict2items }}"
+
+    - name: 1.4. OSPF 프로세스 및 Router-ID 정의
+      arista.eos.eos_ospfv2:
+        config:
+          processes:
+            - process_id: 1
+              router_id: "{{ loopback_ip | ipaddr('address') }}"
+              max_lsa: 12000
+
+    - name: 1.5. OSPF Area 0 네트워크 선언 (Fabric 전 구간)
+      arista.eos.eos_config:
+        lines:
+          - network {{ loopback_ip }} area 0
+          - network 10.1.0.0/16 area 0
+          - network 172.16.1.0/24 area 0
+          - network 192.168.10.0/24 area 0
+        parents: router ospf 1

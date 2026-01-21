@@ -1,0 +1,47 @@
+---
+- name: Step 3. BGP 오버레이 및 ECMP 부하분산 설정
+  hosts: arista
+  gather_facts: no
+
+  tasks:
+    - name: 3.1. BGP 기본 프로세스 및 Router-ID 설정
+      arista.eos.eos_bgp_global:
+        config:
+          as: "{{ bgp_as }}"
+          router_id: "{{ loopback_ip | ipaddr('address') }}"
+
+    - name: 3.2. iBGP 이웃(Neighbor) 설정 (Loopback 기반)
+      arista.eos.eos_config:
+        lines:
+          # 각 장비가 자신의 루프백을 통해 서로 피어링을 맺도록 설정
+          - neighbor 1.1.1.1 remote-as {{ bgp_as }}
+          - neighbor 1.1.1.1 update-source Loopback0
+          - neighbor 1.1.1.1 description PEER_TO_CEOS1
+          - neighbor 2.2.2.2 remote-as {{ bgp_as }}
+          - neighbor 2.2.2.2 update-source Loopback0
+          - neighbor 2.2.2.2 description PEER_TO_CEOS2
+          - neighbor 3.3.3.3 remote-as {{ bgp_as }}
+          - neighbor 3.3.3.3 update-source Loopback0
+          - neighbor 3.3.3.3 description PEER_TO_CEOS3
+        parents: router bgp {{ bgp_as }}
+      # 자기 자신과는 피어링을 맺지 않도록 예외 처리하거나 장비별로 필터링 가능
+      # 여기서는 단순화를 위해 전체 입력 후 장비가 스스로 무시하게 두거나 
+      # 실제 운영 환경에선 host_vars에 neighbor 리스트를 두는 것이 좋습니다.
+
+    - name: 3.3. ECMP(Maximum-Paths) 활성화
+      arista.eos.eos_config:
+        lines:
+          - maximum-paths 2  # 동일 비용 경로를 최대 2개까지 동시 사용
+          - neighbor 1.1.1.1 next-hop-self
+          - neighbor 2.2.2.2 next-hop-self
+          - neighbor 3.3.3.3 next-hop-self
+        parents: router bgp {{ bgp_as }}
+
+    - name: 3.4. BGP 주소 가계(Address-Family) 활성화
+      arista.eos.eos_config:
+        lines:
+          - address-family ipv4
+          - neighbor 1.1.1.1 activate
+          - neighbor 2.2.2.2 activate
+          - neighbor 3.3.3.3 activate
+        parents: router bgp {{ bgp_as }}

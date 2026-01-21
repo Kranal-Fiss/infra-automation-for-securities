@@ -1,0 +1,143 @@
+---
+- name: Step 5. Zabbix 통합 모니터링 및 슬랙 알림 자동화
+  hosts: arista
+  connection: local
+  gather_facts: no
+  vars_files:
+    - "../inventory/group_vars/secrets.yml"
+
+  tasks:
+    # 1. Zabbix 호스트 그룹 관리
+    - name: 1.1. 호스트 그룹 존재 여부 확인
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "hostgroup.get"
+          params:
+            filter:
+              name: ["{{ zabbix_host_group }}"]
+          auth: "{{ zabbix_token }}"
+          id: 1
+      register: group_info
+      run_once: true
+
+    - name: 1.2. 호스트 그룹 생성 (없을 경우)
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "hostgroup.create"
+          params:
+            name: "{{ zabbix_host_group }}"
+          auth: "{{ zabbix_token }}"
+          id: 2
+      when: group_info.json.result | length == 0
+      run_once: true
+
+    # 2. Arista 장비 등록 (SNMPv3 반영)
+    - name: 2.1. 장비 등록 여부 확인
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "host.get"
+          params:
+            filter:
+              host: ["{{ inventory_hostname }}"]
+          auth: "{{ zabbix_token }}"
+          id: 3
+      register: host_check
+
+    - name: 2.2. Zabbix에 네트워크 장비 등록
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "host.create"
+          params:
+            host: "{{ inventory_hostname }}"
+            name: "{{ inventory_hostname | upper }}"
+            interfaces:
+              - type: 2 # SNMP
+                main: 1
+                useip: 1
+                ip: "{{ ansible_host }}"
+                dns: ""
+                port: "161"
+                details:
+                  version: 3
+                  securityname: "{{ snmp_user }}"
+                  securitylevel: 2 # authPriv
+                  authprotocol: 1 # SHA
+                  authpassphrase: "{{ snmp_auth_pass }}"
+                  privprotocol: 1 # AES
+                  privpassphrase: "{{ snmp_priv_pass }}"
+            groups:
+              - groupid: "{{ group_info.json.result[0].groupid if group_info.json.result | length > 0 else '2' }}"
+            templates:
+              - templateid: "10050" # Arista by SNMP 표준 템플릿 ID (환경에 맞춰 수정 가능)
+          auth: "{{ zabbix_token }}"
+          id: 4
+      when: host_check.json.result | length == 0
+
+    # 3. 슬랙 알림 미디어 타입 및 액션 설정
+    - name: 3.1. 슬랙 Webhook 미디어 타입 생성
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "mediatype.create"
+          params:
+            name: "NextSec_Slack_Alert"
+            type: 4 # Script/Webhook
+            parameters:
+              - name: url
+                value: "{{ slack_webhook_url }}"
+              - name: subject
+                value: "{TRIGGER.STATUS}: {TRIGGER.NAME}"
+              - name: message
+                value: "장비: {HOST.NAME}\n상태: {ITEM.VALUE}\n시각: {EVENT.DATE} {EVENT.TIME}"
+          auth: "{{ zabbix_token }}"
+          id: 5
+      run_once: true
+      ignore_errors: yes
+
+    - name: 3.2. 통합 장애 알림 액션(Action) 생성
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "action.create"
+          params:
+            name: "NextSec_Network_Issue_Action"
+            eventsource: 0
+            status: 0
+            filter:
+              evaltype: 0
+              conditions:
+                - conditiontype: 4 # Severity
+                  operator: 5 # >=
+                  value: "3" # Average 이상
+            operations:
+              - operationtype: 0
+                opmessage:
+                  default_msg: 0
+                  subject: "알림: 네트워크 장애 발생"
+                  message: "장비 {HOST.NAME}에서 {TRIGGER.NAME}이(가) 발생했습니다.\n조치: 인터페이스 상태 및 OSPF 인접 관계를 점검하십시오."
+          auth: "{{ zabbix_token }}"
+          id: 6
+      run_once: true
+      ignore_errors: yes

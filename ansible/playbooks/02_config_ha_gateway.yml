@@ -1,0 +1,26 @@
+---
+- name: Step 2. VARP 기반 고가용성 게이트웨이(HA) 설정
+  hosts: spine
+  gather_facts: no
+
+  tasks:
+    - name: 2.1. 전역 가상 MAC 주소 설정
+      arista.eos.eos_config:
+        lines:
+          - ip virtual-router mac-address {{ ha_virtual_mac }}
+
+    - name: 2.2. Cloud 접점 인터페이스(Et3)에 VARP VIP 설정
+      arista.eos.eos_config:
+        lines:
+          - ip virtual-router address {{ cloud_vip | ipaddr('address') }}
+        parents: interface Ethernet3
+
+    - name: 2.3. 설정 확인 (Optional)
+      arista.eos.eos_command:
+        commands:
+          - show ip virtual-router
+      register: varp_status
+
+    - name: 2.4. VARP 상태 출력
+      debug:
+        msg: "{{ varp_status.stdout_lines }}"

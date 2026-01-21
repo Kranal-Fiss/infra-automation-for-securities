@@ -20,7 +20,7 @@ PROJECT_ROOT = os.path.join(HOME, "infra-automation-for-securities")
 TOPO_FILE = os.path.join(PROJECT_ROOT, "docker/ceos-lab/topology.clab.yml")
 INVENTORY_DIR = os.path.join(PROJECT_ROOT, "ansible/inventory")
 INVENTORY_FILE = os.path.join(INVENTORY_DIR, "inventory.yml")
-PLAYBOOK_FILE = os.path.join(PROJECT_ROOT, "ansible/playbooks/generate_configs.yml")
+PLAYBOOK_FILE = os.path.join(PROJECT_ROOT, "ansible/playbooks/00_generate_configs.yml")
 KEY_PATH = os.path.join(HOME, ".ssh/ansible_id_rsa")
 
 # 모니터링 관련 경로 추가
