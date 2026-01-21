@@ -1,5 +1,5 @@
 ---
-- name: Step 4. PIM-SM 및 RP 멀티캐스트 망 구축 (Fix)
+- name: Step 4. PIM-SM 및 RP 멀티캐스트 망 구축 (최종 교정)
   hosts: arista
   gather_facts: no
 
@@ -9,13 +9,13 @@
         lines:
           - ip multicast-routing
 
-    - name: 4.2. 모든 인터페이스(물리+루프백) PIM 활성화
+    - name: 4.2. 물리 인터페이스(Ethernet)에만 PIM 활성화
       arista.eos.eos_config:
         lines:
           - ip pim sparse-mode
-        parents: "interface {{ item }}"
-      # 물리 인터페이스 리스트와 Loopback0를 합쳐서 한꺼번에 처리
-      loop: "{{ interfaces.keys() | list + ['Loopback 0'] }}"
+        parents: "interface {{ item.key }}"
+      # 인벤토리에 정의된 물리 인터페이스(Ethernet1, 2, 3 등)만 루프를 돕니다.
+      loop: "{{ interfaces | dict2items }}"
 
     - name: 4.3. 정적 RP(Rendezvous Point) 주소 지정
       arista.eos.eos_config:
