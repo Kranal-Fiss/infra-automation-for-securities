@@ -1,23 +1,17 @@
 ---
-- name: Step 7. [Final] RP 지정 및 최종 전송 검증
+- name: Step 7. [Final] RP 지정 및 최종 전송 검증 (Fix_v2)
   hosts: arista
   gather_facts: no
   vars:
-    # 테스트할 RP 주소 (사용자 환경에 맞게 수정, 예: 3.3.3.3)
-    target_rp_address: "3.3.3.3" 
+    target_rp_address: "3.3.3.3"
 
   tasks:
-    # -------------------------------------------------------
-    # 1. RP(Rendezvous Point) 주소 지정 (누락분 보완)
-    # -------------------------------------------------------
+    # 1, 2번은 이미 적용되었으므로 Ansible이 알아서 Skip하거나 멱등성을 유지합니다.
     - name: 7.1. 정적 RP 주소 설정
       arista.eos.eos_config:
         lines:
           - ip pim rp-address {{ target_rp_address }}
 
-    # -------------------------------------------------------
-    # 2. 물리 인터페이스 PIM 확인 (혹시 모르니 재확인)
-    # -------------------------------------------------------
     - name: 7.2. 물리 인터페이스 PIM 활성화 재확인
       arista.eos.eos_config:
         lines:
@@ -26,18 +20,19 @@
       loop: "{{ interfaces | dict2items }}"
 
     # -------------------------------------------------------
-    # 3. 최종 상태 검증
+    # 3. 최종 상태 검증 (명령어 수정됨)
     # -------------------------------------------------------
-    - name: 7.3. RP 상태 및 터널링 확인
+    - name: 7.3. RP 상태 및 RPF 경로 확인
       arista.eos.eos_command:
         commands:
           - show ip pim rp
-          - show ip pim rpf {{ target_rp_address }}
+          # [수정] show ip pim rpf 대신 유니캐스트 라우팅 테이블 확인
+          - show ip route {{ target_rp_address }}
       register: final_status
 
     - name: 7.4. 보기 좋게 결과 출력
       debug:
-        msg: 
+        msg:
           - "========================================"
           - "1. RP 설정 확인: {{ final_status.stdout_lines[0] }}"
           - "2. RPF 경로(ECMP): {{ final_status.stdout_lines[1] }}"
