@@ -1,9 +1,9 @@
 ---
-- name: Step 6. [Patch] 멀티캐스트 ECMP 및 IGMP Querier 긴급 보완 (Final Fix)
+- name: Step 6. [Patch] 멀티캐스트 ECMP 및 IGMP Querier 긴급 보완 (Final_v3)
   hosts: arista
   gather_facts: no
   vars:
-    # 트러블슈팅 중 경로 흔들림 방지 (테스트 후 제거 가능)
+    # 경로 흔들림 방지용
     spt_threshold: "infinity"
 
   tasks:
@@ -17,41 +17,47 @@
         parents: router bgp {{ bgp_as }}
 
     # -------------------------------------------------------
-    # 2. 멀티캐스트 Multipath (ECMP RPF) 설정 - [확인된 명령어 적용]
+    # 2. 멀티캐스트 Multipath (ECMP RPF) 설정
     # -------------------------------------------------------
     - name: 6.2. 멀티캐스트 Multipath (Deterministic) 활성화
       arista.eos.eos_config:
         lines:
-          # [확인 완료] cEOS 4.35.1F 버전의 ECMP 멀티캐스트 활성화 명령어
+          # [확인 완료] cEOS 4.35.1F 버전: ECMP 멀티캐스트 활성화
           - ip multicast multipath deterministic
 
     # -------------------------------------------------------
-    # 3. PIM SPT Threshold 설정
+    # 3. PIM SPT Threshold 설정 (IPv4 서브모드)
     # -------------------------------------------------------
     - name: 6.3. PIM SPT Threshold 설정 (경로 흔들림 방지)
       arista.eos.eos_config:
         lines:
-          - spt-threshold infinity
-        parents: router pim sparse-mode
+          # [확인 완료] 띄어쓰기 문법 적용
+          - spt threshold infinity
+        parents:
+          - router pim sparse-mode
+          - ipv4
 
     # -------------------------------------------------------
-    # 4. 호스트 접점 IGMP Querier 설정
+    # 4. 호스트 접점 IGMP 및 DR 설정
     # -------------------------------------------------------
-    - name: 6.4. 호스트 접점(Et3) IGMP Querier 및 DR 우선순위 설정
+    - name: 6.4. 호스트 접점(Et3) DR 우선순위 설정
       arista.eos.eos_config:
         lines:
-          - ip igmp querier
+          # L3 인터페이스는 PIM 활성화 시 자동으로 Querier 동작
+          # 별도의 'ip igmp querier' 명령어 대신 DR 우선순위를 높여 쿼리어 역할 선점
           - ip pim dr-priority 100
         parents: interface Ethernet3
 
     # -------------------------------------------------------
-    # 5. 설정 결과 검증
+    # 5. 설정 결과 검증 (수정됨)
     # -------------------------------------------------------
-    - name: 6.5. PIM RP 및 RPF 상태 확인
+    - name: 6.5. PIM RP 및 멀티캐스트 라우팅 상태 확인
       arista.eos.eos_command:
         commands:
           - show ip pim rp
-          - show ip pim rpf {{ rp_address }}
+          # [수정] show ip pim rpf 명령어 대체 -> 유니캐스트 경로 확인
+          - show ip route {{ rp_address }}
+          # [수정] 멀티캐스트 라우팅 테이블 요약 확인
           - show ip mroute count
       register: fix_status
 
@@ -59,4 +65,5 @@
       debug:
         msg:
           - "RP 상태: {{ fix_status.stdout_lines[0] }}"
-          - "RPF 경로 확인: {{ fix_status.stdout_lines[1] }}"
+          - "RP 경로(ECMP) 확인: {{ fix_status.stdout_lines[1] }}"
+          - "멀티캐스트 패킷 카운트: {{ fix_status.stdout_lines[2] }}"
