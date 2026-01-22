@@ -9,7 +9,7 @@ from pathlib import Path
 # ==========================================
 # Script Name: init_lab.py
 # Description: 권한 복구, 브릿지 생성, SSH 키 준비, NTP 설정, 
-#              Grafana 자동연동 설정, 모니터링 스택 및 Lab 배포
+#              Grafana 자동연동 설정, 모니터링 스택 및 Lab 배포, 호스트 라우팅 자동화
 # ==========================================
 
 # --- [변수 설정] ---
@@ -51,10 +51,10 @@ def run_command(cmd, use_sudo=False, check=True, capture_output=False):
         )
         return result
     except subprocess.CalledProcessError as e:
-        print(f"[Error] Command failed: {' '.join(cmd)}")
-        if e.stderr:
-            print(f"[Details] {e.stderr}")
         if check:
+            print(f"[Error] Command failed: {' '.join(cmd)}")
+            if e.stderr:
+                print(f"[Details] {e.stderr}")
             sys.exit(1)
         return e
 
@@ -62,26 +62,23 @@ def setup_grafana_provisioning():
     """Grafana Zabbix 자동 연동 YAML 생성"""
     print("Step 5.1: Grafana Provisioning 설정 생성 중...")
     
-    # 필요한 디렉토리 생성
     os.makedirs(os.path.join(GRAFANA_PROV_DIR, "datasources"), exist_ok=True)
     os.makedirs(os.path.join(GRAFANA_PROV_DIR, "plugins"), exist_ok=True)
 
-    # 1. Zabbix 데이터 소스 설정
     ds_content = """apiVersion: 1
 datasources:
   - name: Zabbix
     type: alexanderzobnin-zabbix-datasource
     access: proxy
     url: http://zabbix-web:8080/api_jsonrpc.php
-    editable: true  # <--- 이 줄을 추가하면 UI에서 수정이 가능해집니다.
+    editable: true
     jsonData:
-      username: Admin  # <--- 대문자 'A'로 미리 바꿔두는 것을 추천합니다.
+      username: Admin
       password: zabbix
 """
     with open(os.path.join(GRAFANA_PROV_DIR, "datasources/zabbix.yaml"), "w") as f:
         f.write(ds_content)
 
-    # 2. Zabbix 플러그인 활성화 설정
     pl_content = """apiVersion: 1
 apps:
   - type: alexanderzobnin-zabbix-app
@@ -91,10 +88,24 @@ apps:
         f.write(pl_content)
     print(" -> Grafana 자동 연동 설정 파일 생성 완료.")
 
+def setup_host_routing():
+    """호스트들이 Arista Fabric(Data Plane)을 타도록 정적 라우팅 설정"""
+    print("Step 6.1: 데이터 평면 활성화를 위한 호스트 라우팅 설정 중...")
+    
+    # 1. cloud-host -> internal-host (via VARP VIP)
+    cmd_cloud = ["docker", "exec", "clab-ceos-triangle-cloud-host", "ip", "route", "add", "192.168.10.0/24", "via", "172.16.1.254"]
+    run_command(cmd_cloud, check=False) # 이미 존재할 수 있으므로 check=False
+    
+    # 2. internal-host -> cloud-host (via ceos3)
+    cmd_internal = ["docker", "exec", "clab-ceos-triangle-internal-host", "ip", "route", "add", "172.16.1.0/24", "via", "192.168.10.1"]
+    run_command(cmd_internal, check=False)
+    
+    print(" -> 호스트 라우팅 설정 완료.")
+
 def main():
     # 0. 권한 복구
     print("Step 0: 데이터 및 설정 디렉토리 권한 복구 중...")
-    run_command(["-v"], use_sudo=True)
+    run_command(["ls", "-v"], use_sudo=True, check=False) # sudo 세션 확인용
     
     for path in [os.path.join(PROJECT_ROOT, "zbx_env"), os.path.join(PROJECT_ROOT, "docker/ceos-lab/configs"), MONITORING_DIR]:
         if os.path.exists(path):
@@ -135,6 +146,9 @@ def main():
     # 6. Lab 배포
     print("Step 6: Containerlab 배포 시작...")
     run_command(["containerlab", "deploy", "-t", TOPO_FILE, "--reconfigure"], use_sudo=True)
+
+    # 6.1 호스트 라우팅 추가 (신규 단계)
+    setup_host_routing()
 
     # 7. 완료 확인
     print("-" * 50)

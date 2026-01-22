@@ -154,6 +154,15 @@ ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/04_config_
 docker compose -f ./docker/monitoring/docker-compose.yml up -d
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/05_register_monitoring.yml
 
+### Step 4. 호스트 라우팅 설정 (Data Plane 활성화)
+컨테이너 호스트들이 관리망이 아닌 Arista Fabric을 타도록 라우팅을 추가합니다.
+
+# cloud-host -> internal-host 경로 추가
+docker exec clab-ceos-triangle-cloud-host ip route add 192.168.10.0/24 via 172.16.1.254
+
+# internal-host -> cloud-host 경로 추가
+docker exec clab-ceos-triangle-internal-host ip route add 172.16.1.0/24 via 192.168.10.1
+
 ## 5. 핵심 설계 및 검증 포인트 (Architecture Points)
 1) VARP 기반 고가용성 (L3 Redundancy)
 Arista VARP를 활용하여 모든 게이트웨이 라우터가 동일한 가상 IP와 MAC을 공유하는 Active-Active 구조를 구현했습니다. 이를 통해 특정 장비 장애 시 별도의 프로토콜 수렴 시간 없이 즉각적인 장애 조치(Failover)가 가능함을 입증했습니다.
@@ -173,18 +182,64 @@ PIM-SM 아키텍처에서 소스 등록 및 SPT(Shortest Path Tree) 전환 과�
 
 1) L3 인터페이스 활성화 확인
    - `show ip interface brief` (Et1~3가 up/up 인지 확인)
+   
+   ceos1# show ip interface brief
+Interface          IP Address            Status       Protocol
+----------------- --------------------- ------------ --------------
+Loopback0          1.1.1.1/32            up           up
+Ethernet1          10.1.12.1/30          up           up
+Ethernet2          10.1.13.1/30          up           up
+Ethernet3          172.16.1.1/24         up           up
+   
 2) OSPF 및 BGP 인접 관계 확인
    - `show ip ospf neighbor`
    - `show ip bgp summary`
+   백본 구간에서 동일 비용 다중 경로가 생성되어 트래픽 부하 분산이 가능한지 확인합니다
+   
+   ceos1# show ip route ospf
+ O        2.2.2.2/32 [110/20]
+           via 10.1.12.2, Ethernet1
+           via 172.16.1.2, Ethernet3  <-- ECMP 경로 확보
+		   
+   
 3) VARP 가상 게이트웨이 동작 확인
    - `show ip virtual-router` (Virtual IP address가 보여야 함)
+   ceos1과 ceos2가 동일한 가상 IP(172.16.1.254)를 공유하며 Active 상태로 동작하는지 확인합니다.
+   
+   ceos1# show ip virtual-router
+Interface    Virtual IP Address    Protocol    State
+----------- -------------------- ---------- -----------
+Et3          172.16.1.254          U           active
 
-4) VARP 상태 확인: show ip virtual-router (Active-Active 확인)
+4) 멀티캐스트 트리 확인: show ip mroute (SPT 생성 확인)
+PIM-SM 프로토콜이 정상 가동되어 RP(1.1.1.1)를 중심으로 멀티캐스트 배달 경로가 생성되었는지 확인합니다.
+ceos3# show ip mroute
+239.1.1.1
+  0.0.0.0, 0:00:14, RP 1.1.1.1, flags: W
+    Incoming interface: Ethernet1 (via OSPF 1.1.1.1)
+    Outgoing interface list:
+      Ethernet3  <-- 수신자(Receiver) 접점 활성화
+	  
 
-5) 멀티캐스트 트리 확인: show ip mroute (SPT 생성 확인)
+5) BGP 오버레이 세션 확인
+루프백 IP 주소를 기반으로 iBGP 피어링이 Established 상태인지 확인합니다.
+ceos1#sh ip bgp summary
+BGP summary information for VRF default
+Router identifier 1.1.1.1, local AS number 65100
+Neighbor Status Codes: m - Under maintenance
+  Description              Neighbor V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc PfxAdv
+  PEER_TO_CEOS1            1.1.1.1  4 65100             78        78    0    0 01:28:01 Active
+  PEER_TO_CEOS2            2.2.2.2  4 65100             32        32    0    0 00:24:33 Estab   0      0      0
+  PEER_TO_CEOS3            3.3.3.3  4 65100             32        32    0    0 00:24:33 Estab   0      0      0
 
-6) ECMP 경로 확인: show ip route ospf (동일 비용 다중 경로 확인)
 
-7) SNMP 동작 확인: snmpwalk -v3 -u admin ... (모니터링 데이터 수집 확인)
+6) SNMPv3 보안 통신 검증
+SNMPv3(Auth/Priv)를 통해 모니터링 서버(Zabbix)와 안전하게 데이터를 주고받는지 검증합니다.
+# 제어 노드(WSL/EC2)에서 실행
+snmpwalk -v3 -l authPriv -u admin -a SHA -A [AUTH_PW] -x AES -X [PRIV_PW] 172.20.20.11 .1.3.6.1.2.1.1.5.0
+
+~/infra-automation-for-securities main infra-automation-for-securities                                         13:38:18
+❯ snmpwalk -v3 -l authPriv -u admin -a SHA -A 'admin123' -x AES -X 'admin123' 172.20.20.11 .1.3.6.1.2.1.1.5.0
+iso.3.6.1.2.1.1.5.0 = STRING: "ceos1"
 
 ---

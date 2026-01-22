@@ -1,0 +1,57 @@
+---
+- name: Step 6. [Patch] 멀티캐스트 ECMP 및 IGMP Querier 긴급 보완
+  hosts: arista
+  gather_facts: no
+  vars:
+    # 트러블슈팅 중 경로 흔들림 방지를 위해 Shared Tree 유지 (테스트 후 제거 가능)
+    spt_threshold: "infinity"
+
+  tasks:
+    # -------------------------------------------------------
+    # 1. BGP ECMP 경로 확장 (03번 파일 보완 대상)
+    # -------------------------------------------------------
+    - name: 6.1. BGP Maximum-Paths 설정 (유니캐스트 ECMP 활성화)
+      arista.eos.eos_config:
+        lines:
+          - maximum-paths 4 ecmp 4
+        parents: router bgp {{ bgp_as }}
+
+    # -------------------------------------------------------
+    # 2. PIM ECMP 및 튜닝 (04번 파일 보완 대상 - 핵심)
+    # -------------------------------------------------------
+    - name: 6.2. PIM ECMP 활성화 및 SPT 임계값 조정
+      arista.eos.eos_config:
+        lines:
+          # IPv4 서브모드로 진입하여 설정
+          - ipv4
+          - ip pim ecmp            # [Critical] 유니캐스트 ECMP 경로를 RPF로 인정
+          - spt-threshold infinity # [Debug] 디버깅 중 경로 변경 방지
+        parents: router pim sparse-mode
+
+    # -------------------------------------------------------
+    # 3. 호스트 접점 IGMP Querier 설정 (04번 파일 보완 대상)
+    # -------------------------------------------------------
+    - name: 6.3. 호스트 접점(Et3) IGMP Querier 및 DR 우선순위 설정
+      arista.eos.eos_config:
+        lines:
+          - ip igmp querier          # [Critical] 컨테이너 브리지 Snooping 대응
+          - ip pim dr-priority 100   # DR 역할 고정
+        parents: interface Ethernet3
+
+    # -------------------------------------------------------
+    # 4. 설정 결과 검증 (Verification)
+    # -------------------------------------------------------
+    - name: 6.4. PIM RP 및 RPF 상태 확인
+      arista.eos.eos_command:
+        commands:
+          - show ip pim rp
+          - show ip pim rpf {{ rp_address }}
+          - show ip mroute count
+      register: fix_status
+
+    - name: 6.5. 검증 결과 출력
+      debug:
+        msg: 
+          - "RP 상태: {{ fix_status.stdout_lines[0] }}"
+          - "RPF 경로 확인: {{ fix_status.stdout_lines[1] }}"
+          - "Mroute 카운트: {{ fix_status.stdout_lines[2] }}"
