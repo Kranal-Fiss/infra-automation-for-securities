@@ -5,7 +5,7 @@
   gather_facts: false
 
   vars:
-    # Zabbix 접속 정보
+    # Zabbix 접속 정보 (로컬 호스트 기준)
     zabbix_url: "http://localhost:8081/api_jsonrpc.php"
     zabbix_user: "Admin"
     zabbix_password: "zabbix"
@@ -16,7 +16,7 @@
       uri:
         url: "{{ zabbix_url }}"
         method: POST
-        body_format: json  # 이 부분이 수정되었습니다.
+        body_format: json
         body:
           jsonrpc: "2.0"
           method: "user.login"
@@ -36,7 +36,8 @@
       copy:
         dest: "{{ secrets_file }}"
         content: |
-          zabbix_url: "http://172.20.20.100:8081/api_jsonrpc.php"
+          # 중복 경로 방지를 위해 IP/Port만 유지 (플레이북에서 경로 결합)
+          zabbix_api_url: "http://localhost:8081/api_jsonrpc.php"
           zabbix_user: "{{ zabbix_user }}"
           zabbix_password: "{{ zabbix_password }}"
           zabbix_token: "{{ new_zabbix_token }}"
