@@ -1,0 +1,58 @@
+---
+- name: Zabbix API 토큰 발급 및 secrets 설정
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # 시스템 접속 정보 (공개되어도 안전한 내부 주소)
+    zabbix_url: "http://localhost:8081/api_jsonrpc.php"
+    zabbix_user: "Admin"
+    zabbix_password: "zabbix"
+    
+    # [보안] 실제 URL은 여기에 적지 않고 실행 시 환경변수에서 읽거나 
+    # 기존 secrets.yml을 유지하도록 설정합니다.
+    # 실행 시: export SLACK_URL="https://hooks.slack.com/..."
+    slack_url: "{{ lookup('env', 'SLACK_URL') | default('REPLACE_WITH_YOUR_ACTUAL_URL', true) }}"
+    
+    secrets_file: "../inventory/group_vars/secrets.yml"
+
+  tasks:
+    - name: 1. Zabbix API 로그인 및 세션 토큰 요청
+      ansible.builtin.uri:
+        url: "{{ zabbix_url }}"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "user.login"
+          params:
+            username: "{{ zabbix_user }}"
+            password: "{{ zabbix_password }}"
+          id: 1
+        return_content: true
+      register: login_response
+
+    - name: 2. 응답 확인 및 토큰 추출
+      ansible.builtin.set_fact:
+        new_zabbix_token: "{{ login_response.json.result }}"
+      failed_when: login_response.json.result is not defined
+
+    - name: 3. secrets.yml 파일 생성 및 민감 정보 기록
+      # 이 태스크는 로컬에만 파일을 생성하므로 Git 추적에서 제외해야 합니다.
+      ansible.builtin.copy:
+        dest: "{{ secrets_file }}"
+        content: |
+          # Ansible 자동 생성 파일 - [보안 주의]
+          zabbix_api_url: "http://localhost:8081/api_jsonrpc.php"
+          zabbix_user: "{{ zabbix_user }}"
+          zabbix_password: "{{ zabbix_password }}"
+          zabbix_token: "{{ new_zabbix_token }}"
+          slack_webhook_url: "{{ slack_url }}"
+        mode: '0600'
+
+    - name: 4. 결과 출력
+      ansible.builtin.debug:
+        msg: 
+          - "새로운 Zabbix 토큰이 발급되었습니다."
+          - "경로: {{ secrets_file }}"
