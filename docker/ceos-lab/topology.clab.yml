@@ -43,22 +43,26 @@ topology:
       binds:
         - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
 
-    # 테스트용 Linux 호스트 설정
+    # 테스트용 Linux 호스트 설정 (Ubuntu로 교체)
     cloud-host:
       kind: linux
-      image: alpine:latest
+      image: ubuntu:22.04
       exec:
-        - ip addr add 172.16.1.10/24 dev eth1
-        - ip route add default via 172.16.1.254
-        - apk add --no-cache iproute2 socat tcpdump
+        - bash -lc "export DEBIAN_FRONTEND=noninteractive; apt-get update"
+        - bash -lc "export DEBIAN_FRONTEND=noninteractive; apt-get install -y iproute2 iputils-ping tcpdump socat smcroute iperf python3"
+        - bash -lc "ip addr add 172.16.1.10/24 dev eth1 || true"
+        - bash -lc "ip link set eth1 up"
+        - bash -lc "ip route replace default via 172.16.1.254"
 
     internal-host:
       kind: linux
-      image: alpine:latest
+      image: ubuntu:22.04
       exec:
-        - ip addr add 192.168.10.10/24 dev eth1
-        - ip route add default via 192.168.10.1
-        - apk add --no-cache iproute2 socat tcpdump
+        - bash -lc "export DEBIAN_FRONTEND=noninteractive; apt-get update"
+        - bash -lc "export DEBIAN_FRONTEND=noninteractive; apt-get install -y iproute2 iputils-ping tcpdump socat smcroute iperf python3"
+        - bash -lc "ip addr add 192.168.10.10/24 dev eth1 || true"
+        - bash -lc "ip link set eth1 up"
+        - bash -lc "ip route replace default via 192.168.10.1"
 
     # L2 브리지 설정
     br-cloud:
