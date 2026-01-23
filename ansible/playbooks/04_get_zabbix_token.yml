@@ -5,7 +5,7 @@
   gather_facts: false
 
   vars:
-    # Zabbix 접속 정보 (필요시 수정)
+    # Zabbix 접속 정보
     zabbix_url: "http://localhost:8081/api_jsonrpc.php"
     zabbix_user: "Admin"
     zabbix_password: "zabbix"
@@ -16,7 +16,7 @@
       uri:
         url: "{{ zabbix_url }}"
         method: POST
-        body_content_type: json
+        body_format: json  # 이 부분이 수정되었습니다.
         body:
           jsonrpc: "2.0"
           method: "user.login"
