@@ -1,0 +1,52 @@
+---
+- name: Step 8. [Critical] SFE 엔진 전환 및 멀티캐스트 최종 교정
+  hosts: arista
+  gather_facts: no
+
+  tasks:
+    - name: 8.1. 소프트웨어 포워딩 엔진을 Kernel에서 SFE로 전환
+      arista.eos.eos_config:
+        lines:
+          - software-forwarding sfe
+        parents: 
+          - router multicast
+          - ipv4
+
+    - name: 8.2. PIM 및 IGMP 상세 설정 (S,G 생성 유도)
+      arista.eos.eos_config:
+        lines:
+          - ip multicast-routing
+          - ip pim rp-address 3.3.3.3
+          - ip multicast multipath deterministic
+
+    - name: 8.3. ceos3 전용 IGMP Static Group 설정
+      arista.eos.eos_config:
+        lines:
+          - ip igmp static-group 239.9.9.9
+        parents: interface Ethernet3
+      when: inventory_hostname == 'ceos3'
+
+    - name: 8.4. RPF 체크 통과를 위한 정적 경로 (ceos3 전용)
+      arista.eos.eos_config:
+        lines:
+          - ip route 172.16.1.0/24 10.1.13.1
+          - ip mroute 172.16.1.0/24 10.1.13.1
+      when: inventory_hostname == 'ceos3'
+
+    - name: 8.5. 설정 저장 (Busy 무시 및 재시도)
+      arista.eos.eos_command:
+        commands: "copy running-config startup-config"
+      register: save_res
+      until: save_res is not failed
+      retries: 3
+      delay: 5
+
+    - name: 8.6. 최종 멀티캐스트 상태 확인
+      arista.eos.eos_command:
+        commands:
+          - show ip mroute
+      register: mroute_final
+
+    - name: 최종 결과 출력
+      debug:
+        var: mroute_final.stdout_lines

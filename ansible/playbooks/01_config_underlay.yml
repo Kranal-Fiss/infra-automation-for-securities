@@ -2,38 +2,34 @@
 - name: Step 1. Underlay 인프라 자동화 (IP & OSPF)
   hosts: arista
   gather_facts: no
-  vars_files:
-    - "../inventory/group_vars/secrets.yml"
 
   tasks:
     - name: 1.1. 전역 L3 라우팅 활성화
       arista.eos.eos_config:
-        lines: "ip routing"
+        lines: 
+          - ip routing
+          - service routing protocols model multi-agent
 
-    - name: 1.2. Loopback0 인터페이스 설정
+    - name: 1.2. Loopback0 설정
       arista.eos.eos_l3_interfaces:
         config:
           - name: Loopback0
-            ipv4:
-              - address: "{{ loopback_ip }}"
+            ipv4: [{ address: "{{ loopback_ip }}" }]
 
-    - name: 1.3. 물리 인터페이스 L3 모드 전환 및 IP/Description 주입
+    - name: 1.3. 인터페이스 설정 (MTU 9214 포함)
       arista.eos.eos_config:
         lines:
-          - no switchport          # L3 모드 전환
+          - no switchport
           - description {{ item.value.desc }}
           - ip address {{ item.value.ip }}
-          - no shutdown            # 인터페이스 활성화
+          - mtu 9214
+          - no shutdown
         parents: "interface {{ item.key }}"
       loop: "{{ interfaces | dict2items }}"
 
-    - name: 1.4. OSPF 구성 (Router-ID 및 Area 0 네트워크 선언)
+    - name: 1.4. OSPF 구성
       arista.eos.eos_config:
         lines:
           - router-id {{ loopback_ip.split('/')[0] }}
-          - max-lsa 12000
-          - network {{ loopback_ip }} area 0
-          - network 10.1.0.0/16 area 0
-          - network 172.16.1.0/24 area 0
-          - network 192.168.10.0/24 area 0
+          - network 0.0.0.0/0 area 0
         parents: router ospf 1

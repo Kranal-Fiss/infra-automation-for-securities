@@ -1,48 +1,36 @@
 ---
-- name: Step 3. BGP 오버레이 및 ECMP 부하분산 설정
+- name: Step 3. BGP 오버레이 및 ECMP 설정
   hosts: arista
   gather_facts: no
 
   tasks:
-    - name: 3.1. BGP 기본 프로세스 및 Router-ID 설정
+    - name: 3.1. BGP 기본 설정
       arista.eos.eos_config:
         lines:
           - router bgp {{ bgp_as }}
           - router-id {{ loopback_ip.split('/')[0] }}
-          - bgp cluster-id 1.1.1.1  # 이중화 구성을 위한 클러스터 ID (선택사항)
           - no bgp default ipv4-unicast
+          - maximum-paths 4 ecmp 4
 
-    - name: 3.2. iBGP 이웃(Neighbor) 설정 (Loopback 기반)
+    - name: 3.2. iBGP Neighbor 설정
       arista.eos.eos_config:
         lines:
-          # ceos1 (1.1.1.1) 설정
           - neighbor 1.1.1.1 remote-as {{ bgp_as }}
           - neighbor 1.1.1.1 update-source Loopback0
-          - neighbor 1.1.1.1 description PEER_TO_CEOS1
-          # ceos2 (2.2.2.2) 설정
           - neighbor 2.2.2.2 remote-as {{ bgp_as }}
           - neighbor 2.2.2.2 update-source Loopback0
-          - neighbor 2.2.2.2 description PEER_TO_CEOS2
-          # ceos3 (3.3.3.3) 설정
           - neighbor 3.3.3.3 remote-as {{ bgp_as }}
           - neighbor 3.3.3.3 update-source Loopback0
-          - neighbor 3.3.3.3 description PEER_TO_CEOS3
         parents: router bgp {{ bgp_as }}
 
-    - name: 3.3. ECMP(Maximum-Paths) 및 Next-Hop-Self 설정
-      arista.eos.eos_config:
-        lines:
-          - maximum-paths 2
-          - neighbor 1.1.1.1 next-hop-self
-          - neighbor 2.2.2.2 next-hop-self
-          - neighbor 3.3.3.3 next-hop-self
-        parents: router bgp {{ bgp_as }}
-
-    - name: 3.4. BGP 주소 가계(Address-Family) 활성화
+    - name: 3.3. Address-Family 활성화
       arista.eos.eos_config:
         lines:
           - address-family ipv4
           - neighbor 1.1.1.1 activate
           - neighbor 2.2.2.2 activate
           - neighbor 3.3.3.3 activate
+          - neighbor 1.1.1.1 next-hop-self
+          - neighbor 2.2.2.2 next-hop-self
+          - neighbor 3.3.3.3 next-hop-self
         parents: router bgp {{ bgp_as }}
