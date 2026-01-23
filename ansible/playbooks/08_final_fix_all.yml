@@ -1,10 +1,10 @@
 ---
-- name: Step 8. [Critical] SFE 확정 및 멀티캐스트 최종 교정 (Final_v5)
+- name: Step 8. [Final] DR 우선순위 차등화 및 멀티캐스트 엔진 확정
   hosts: arista
   gather_facts: no
 
   tasks:
-    - name: 8.1. 인터페이스 PIM 활성화 및 MTU 재확인
+    - name: 8.1. 모든 L3 인터페이스 PIM 활성화 및 MTU 9214 설정
       arista.eos.eos_config:
         lines:
           - ip pim sparse-mode
@@ -12,7 +12,14 @@
         parents: "interface {{ item.key }}"
       loop: "{{ interfaces | dict2items }}"
 
-    - name: 8.2. 멀티캐스트 엔진 및 ECMP 최적화
+    - name: 8.2. DR 우선순위 설정 (ceos1을 DR로 강제 선출)
+      arista.eos.eos_config:
+        lines:
+          # ceos1은 200, 나머지는 100을 부여하여 IP 주소와 상관없이 ceos1이 승리하게 함
+          - ip pim dr-priority {{ 200 if inventory_hostname == 'ceos1' else 100 }}
+        parents: interface Ethernet3
+
+    - name: 8.3. 멀티캐스트 SFE 엔진 및 ECMP 부하분산 활성화
       arista.eos.eos_config:
         lines:
           - software-forwarding sfe
@@ -21,30 +28,28 @@
           - router multicast
           - ipv4
 
-    - name: 8.3. ceos3 전용 설정 (RPF 경로 및 Static Group)
+    - name: 8.4. ceos3 수신자 접점 설정 (Static Group)
       arista.eos.eos_config:
         lines:
           - ip igmp static-group 239.9.9.9
-          - ip pim dr-priority 100
         parents: interface Ethernet3
       when: inventory_hostname == 'ceos3'
 
-    - name: 8.4. RPF 체크 통과를 위한 정적 경로 (ceos3)
+    - name: 8.5. ceos3 RPF 체크 통과를 위한 정적 경로 주입
       arista.eos.eos_config:
         lines:
           - ip route 172.16.1.0/24 10.1.13.1
           - ip mroute 172.16.1.0/24 10.1.13.1
       when: inventory_hostname == 'ceos3'
 
-    - name: 8.5. 설정 저장
+    - name: 8.6. 설정 저장 (Startup-config 반영)
       arista.eos.eos_command:
         commands: "copy running-config startup-config"
       ignore_errors: yes
 
-    - name: 8.6. 최종 mroute 상태 확인
+    - name: 8.7. 최종 멀티캐스트 라우팅 테이블 확인
       arista.eos.eos_command:
-        commands:
-          - show ip mroute
+        commands: "show ip mroute"
       register: final_mroute
 
     - name: 결과 출력
