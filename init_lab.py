@@ -8,7 +8,7 @@ from pathlib import Path
 
 # ==========================================
 # Script Name: init_lab.py
-# Description: 권한 복구, 브릿지 생성, SSH 키 준비, NTP 설정, 
+# Description: 권한 복구, 브릿지 생성(Snooping 활성화), SSH 키 준비, NTP 설정, 
 #              Grafana 자동연동 설정, 모니터링 스택 및 Lab 배포, 호스트 라우팅 자동화
 # ==========================================
 
@@ -94,7 +94,7 @@ def setup_host_routing():
     
     # 1. cloud-host -> internal-host (via VARP VIP)
     cmd_cloud = ["docker", "exec", "clab-ceos-triangle-cloud-host", "ip", "route", "add", "192.168.10.0/24", "via", "172.16.1.254"]
-    run_command(cmd_cloud, check=False) # 이미 존재할 수 있으므로 check=False
+    run_command(cmd_cloud, check=False)
     
     # 2. internal-host -> cloud-host (via ceos3)
     cmd_internal = ["docker", "exec", "clab-ceos-triangle-internal-host", "ip", "route", "add", "172.16.1.0/24", "via", "192.168.10.1"]
@@ -105,7 +105,7 @@ def setup_host_routing():
 def main():
     # 0. 권한 복구
     print("Step 0: 데이터 및 설정 디렉토리 권한 복구 중...")
-    run_command(["ls", "-v"], use_sudo=True, check=False) # sudo 세션 확인용
+    run_command(["ls", "-v"], use_sudo=True, check=False) 
     
     for path in [os.path.join(PROJECT_ROOT, "zbx_env"), os.path.join(PROJECT_ROOT, "docker/ceos-lab/configs"), MONITORING_DIR]:
         if os.path.exists(path):
@@ -116,12 +116,19 @@ def main():
         run_command(["rm", "-f", pg_pid_file], use_sudo=True)
     print(" -> 권한 정리 완료.")
 
-    # 1. 브릿지 네트워크 준비
-    print("Step 1: 브릿지 네트워크 점검 중...")
+    # 1. 브릿지 네트워크 준비 (IGMP Snooping 활성화)
+    print("Step 1: 브릿지 네트워크 점검 및 IGMP Snooping 설정 중...")
     for br in ["br-cloud", "br-internal"]:
         if subprocess.run(["ip", "link", "show", br], capture_output=True).returncode != 0:
             run_command(["ip", "link", "add", br, "type", "bridge"], use_sudo=True)
+            # IGMP Snooping 활성화 및 멀티캐스트 쿼리어 설정
+            run_command(["ip", "link", "set", "dev", br, "type", "bridge", "mcast_snooping", "1"], use_sudo=True)
+            run_command(["ip", "link", "set", "dev", br, "type", "bridge", "mcast_querier", "1"], use_sudo=True)
             run_command(["ip", "link", "set", br, "up"], use_sudo=True)
+        else:
+            # 기존 브릿지에도 Snooping 적용 확인
+            run_command(["ip", "link", "set", "dev", br, "type", "bridge", "mcast_snooping", "1"], use_sudo=True)
+            run_command(["ip", "link", "set", "dev", br, "type", "bridge", "mcast_querier", "1"], use_sudo=True)
 
     # 2. SSH 키 준비
     if not os.path.exists(KEY_PATH):
@@ -147,7 +154,7 @@ def main():
     print("Step 6: Containerlab 배포 시작...")
     run_command(["containerlab", "deploy", "-t", TOPO_FILE, "--reconfigure"], use_sudo=True)
 
-    # 6.1 호스트 라우팅 추가 (신규 단계)
+    # 6.1 호스트 라우팅 추가
     setup_host_routing()
 
     # 7. 완료 확인

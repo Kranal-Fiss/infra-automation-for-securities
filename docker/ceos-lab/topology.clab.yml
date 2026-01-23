@@ -6,7 +6,6 @@ mgmt:
 
 topology:
   nodes:
-    # Arista cEOS 라우터 설정
     ceos1:
       kind: ceos
       image: ceos-lab:4.35.1F
@@ -43,15 +42,15 @@ topology:
       binds:
         - ~/.ssh/ansible_id_rsa.pub:/home/admin/.ssh/authorized_keys
 
-    # 테스트용 Linux 호스트 설정 (Ubuntu로 교체)
     cloud-host:
       kind: linux
       image: ubuntu:22.04
       exec:
         - bash -lc "export DEBIAN_FRONTEND=noninteractive; apt-get update"
-        - bash -lc "export DEBIAN_FRONTEND=noninteractive; apt-get install -y iproute2 iputils-ping tcpdump socat smcroute iperf python3"
+        - bash -lc "export DEBIAN_FRONTEND=noninteractive; apt-get install -y iproute2 iputils-ping tcpdump socat smcroute iperf python3 iptables"
+        - bash -lc "iptables -F && iptables -X && iptables -t nat -F && iptables -t nat -X && iptables -P INPUT ACCEPT && iptables -P FORWARD ACCEPT && iptables -P OUTPUT ACCEPT"
         - bash -lc "ip addr add 172.16.1.10/24 dev eth1 || true"
-        - bash -lc "ip link set eth1 up"
+        - bash -lc "ip link set dev eth1 mtu 9214 up"
         - bash -lc "ip route replace default via 172.16.1.254"
 
     internal-host:
@@ -59,28 +58,23 @@ topology:
       image: ubuntu:22.04
       exec:
         - bash -lc "export DEBIAN_FRONTEND=noninteractive; apt-get update"
-        - bash -lc "export DEBIAN_FRONTEND=noninteractive; apt-get install -y iproute2 iputils-ping tcpdump socat smcroute iperf python3"
+        - bash -lc "export DEBIAN_FRONTEND=noninteractive; apt-get install -y iproute2 iputils-ping tcpdump socat smcroute iperf python3 iptables"
+        - bash -lc "iptables -F && iptables -X && iptables -t nat -F && iptables -t nat -X && iptables -P INPUT ACCEPT && iptables -P FORWARD ACCEPT && iptables -P OUTPUT ACCEPT"
         - bash -lc "ip addr add 192.168.10.10/24 dev eth1 || true"
-        - bash -lc "ip link set eth1 up"
+        - bash -lc "ip link set dev eth1 mtu 9214 up"
         - bash -lc "ip route replace default via 192.168.10.1"
 
-    # L2 브리지 설정
     br-cloud:
       kind: bridge
     br-internal:
       kind: bridge
 
   links:
-    # 1. 라우터 간 백본 연결 (Triangle)
-    - endpoints: ["ceos1:eth1", "ceos2:eth1"] # 10.1.12.0/30
-    - endpoints: ["ceos1:eth2", "ceos3:eth1"] # 10.1.13.0/30
-    - endpoints: ["ceos2:eth2", "ceos3:eth2"] # 10.1.23.0/30
-
-    # 2. Cloud 영역 연결 (L2 Bridge 공유)
+    - endpoints: ["ceos1:eth1", "ceos2:eth1"]
+    - endpoints: ["ceos1:eth2", "ceos3:eth1"]
+    - endpoints: ["ceos2:eth2", "ceos3:eth2"]
     - endpoints: ["ceos1:eth3", "br-cloud:p1-c"]
     - endpoints: ["ceos2:eth3", "br-cloud:p2-c"]
     - endpoints: ["cloud-host:eth1", "br-cloud:p3-c"]
-
-    # 3. Internal 영역 연결
     - endpoints: ["ceos3:eth3", "br-internal:p1-i"]
     - endpoints: ["internal-host:eth1", "br-internal:p2-i"]
