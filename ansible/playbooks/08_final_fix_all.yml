@@ -1,5 +1,5 @@
 ---
-- name: Step 8. [Critical] SFE 확정 및 멀티캐스트 SPT 전환 교정
+- name: Step 8. [Critical] SFE 확정 및 멀티캐스트 SPT 전환 교정 (Final_v2)
   hosts: arista
   gather_facts: no
 
@@ -26,7 +26,7 @@
         lines:
           - spt-threshold 0
         parents:
-          - router multicast
+          - router pim sparse-mode
           - ipv4
 
     - name: 8.4. ceos3 전용 설정 (RPF 경로 및 Static Group)
