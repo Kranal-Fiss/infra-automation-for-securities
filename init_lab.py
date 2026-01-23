@@ -64,4 +64,4 @@ def ensure_docker_network():
     check_net = run_command(["docker", "network", "inspect", "clab"], check=False, capture_output=True)
     
     if check_net.returncode != 0:
-        print(" -> 'clab' 네트워크가 없습니다. 서브넷 172.20.20
+        print(" -> 'clab' 네트워크가 없습니다. 서브넷 172.20.20.0/24로 생성합니다.")
