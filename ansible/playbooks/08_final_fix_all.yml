@@ -1,5 +1,5 @@
 ---
-- name: Step 8. [Critical] SFE 확정 및 멀티캐스트 최종 교정 (Integrated)
+- name: Step 8. [Critical] SFE 확정 및 멀티캐스트 최종 교정 (Final_v5)
   hosts: arista
   gather_facts: no
 
@@ -36,13 +36,10 @@
           - ip mroute 172.16.1.0/24 10.1.13.1
       when: inventory_hostname == 'ceos3'
 
-    - name: 8.5. 설정 저장 (Busy 무시 및 재시도)
+    - name: 8.5. 설정 저장
       arista.eos.eos_command:
         commands: "copy running-config startup-config"
-      register: save_res
-      until: save_res is not failed
-      retries: 3
-      delay: 5
+      ignore_errors: yes
 
     - name: 8.6. 최종 mroute 상태 확인
       arista.eos.eos_command:
