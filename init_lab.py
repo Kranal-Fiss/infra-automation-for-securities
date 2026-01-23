@@ -7,15 +7,12 @@ import time
 from pathlib import Path
 
 # ==========================================
-# Script Name: init_lab.py (Ultimate Idempotent Version)
-# Description: 필수 패키지 설치, 로케일 강제 생성 및 인프라 자동 배포
+# Script Name: init_lab.py (Ultimate Fixed Version)
 # ==========================================
 
-# 1. 스크립트 실행 세션 로케일 고정
 os.environ["LANG"] = "en_US.UTF-8"
 os.environ["LC_ALL"] = "en_US.UTF-8"
 
-# --- [변수 설정] ---
 HOME = str(Path.home())
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__)) 
 
@@ -33,7 +30,6 @@ ANSIBLE_PLAYBOOK = os.path.join(VENV_BIN, "ansible-playbook") if os.path.exists(
 ANSIBLE_BIN = os.path.join(VENV_BIN, "ansible") if os.path.exists(os.path.join(VENV_BIN, "ansible")) else "ansible"
 
 def run_command(cmd, use_sudo=False, check=True, capture_output=False):
-    """자식 프로세스에 환경변수를 상속하는 헬퍼 함수"""
     if use_sudo:
         cmd = ["sudo"] + cmd
     try:
@@ -48,32 +44,25 @@ def run_command(cmd, use_sudo=False, check=True, capture_output=False):
         return e
 
 def ensure_dependencies():
-    """Step 0.1: 필수 시스템 패키지 및 로케일 데이터 생성 (에러 방지 핵심)"""
     print("Step 0.1: 필수 시스템 패키지 및 로케일 점검 중...")
-    
-    # 1. 패키지 설치
     run_command(["apt", "update"], use_sudo=True)
     run_command(["apt", "install", "-y", "chrony", "locales", "dos2unix", "iproute2"], use_sudo=True)
     
-    # 2. 로케일 데이터 강제 생성 (update-locale 에러 방지)
-    print(" -> en_US.UTF-8 로케일 생성 중...")
+    print(" -> en_US.UTF-8 로케일 강제 생성 중...")
     run_command(["sed", "-i", "s/^# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/", "/etc/locale.gen"], use_sudo=True)
+    # 인자를 직접 주어 생성 성공률 극대화
     run_command(["locale-gen", "en_US.UTF-8"], use_sudo=True)
     
-    # 3. 시스템 로케일 설정 적용
     run_command(["update-locale", "LANG=en_US.UTF-8"], use_sudo=True)
     print(" -> 시스템 의존성 및 로케일 정리 완료.")
 
 def ensure_docker_network():
-    """Docker 네트워크(clab) 자동 생성"""
     print("Step 5.15: Docker 네트워크(clab) 점검 중...")
     check_net = run_command(["docker", "network", "inspect", "clab"], check=False, capture_output=True)
     if check_net.returncode != 0:
-        print(" -> 'clab' 네트워크 생성 (Subnet: 172.20.20.0/24)")
         run_command(["docker", "network", "create", "--subnet=172.20.20.0/24", "clab"], use_sudo=True)
 
 def setup_grafana_provisioning():
-    """Grafana Zabbix 자동 연동 설정 생성"""
     print("Step 5.1: Grafana Provisioning 설정 생성 중...")
     os.makedirs(os.path.join(GRAFANA_PROV_DIR, "datasources"), exist_ok=True)
     os.makedirs(os.path.join(GRAFANA_PROV_DIR, "plugins"), exist_ok=True)
@@ -99,16 +88,13 @@ apps:
 """
     with open(os.path.join(GRAFANA_PROV_DIR, "plugins/zabbix.yaml"), "w") as f:
         f.write(pl_content)
-    print(" -> Grafana 자동 연동 설정 파일 생성 완료.")
 
 def setup_host_routing():
-    """데이터 평면 활성화를 위한 호스트 라우팅 설정"""
     print("Step 6.1: 호스트 라우팅 설정 중...")
     run_command(["docker", "exec", "clab-ceos-triangle-cloud-host", "ip", "route", "add", "192.168.10.0/24", "via", "172.16.1.254"], check=False)
     run_command(["docker", "exec", "clab-ceos-triangle-internal-host", "ip", "route", "add", "172.16.1.0/24", "via", "192.168.10.1"], check=False)
 
 def main():
-    # 0. 의존성 및 로케일 해결
     ensure_dependencies()
 
     print("Step 0: 데이터 및 설정 디렉토리 권한 복구 중...")
