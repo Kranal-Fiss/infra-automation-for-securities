@@ -1,5 +1,5 @@
 ---
-- name: Step 8. [Critical] SFE 확정 및 멀티캐스트 SPT 전환 교정 (Final_v2)
+- name: Step 8. [Critical] SFE 확정 및 멀티캐스트 최종 교정 (Final_v5)
   hosts: arista
   gather_facts: no
 
@@ -21,15 +21,7 @@
           - router multicast
           - ipv4
 
-    - name: 8.3. SPT Threshold 교정 (S 플래그 생성을 위해 0으로 설정)
-      arista.eos.eos_config:
-        lines:
-          - spt-threshold 0
-        parents:
-          - router pim sparse-mode
-          - ipv4
-
-    - name: 8.4. ceos3 전용 설정 (RPF 경로 및 Static Group)
+    - name: 8.3. ceos3 전용 설정 (RPF 경로 및 Static Group)
       arista.eos.eos_config:
         lines:
           - ip igmp static-group 239.9.9.9
@@ -37,19 +29,19 @@
         parents: interface Ethernet3
       when: inventory_hostname == 'ceos3'
 
-    - name: 8.5. RPF 체크 통과를 위한 정적 경로 (ceos3)
+    - name: 8.4. RPF 체크 통과를 위한 정적 경로 (ceos3)
       arista.eos.eos_config:
         lines:
           - ip route 172.16.1.0/24 10.1.13.1
           - ip mroute 172.16.1.0/24 10.1.13.1
       when: inventory_hostname == 'ceos3'
 
-    - name: 8.6. 설정 저장
+    - name: 8.5. 설정 저장 (Busy 무시)
       arista.eos.eos_command:
         commands: "copy running-config startup-config"
       ignore_errors: yes
 
-    - name: 8.7. 최종 mroute 상태 확인
+    - name: 8.6. 최종 mroute 상태 확인
       arista.eos.eos_command:
         commands:
           - show ip mroute
