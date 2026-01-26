@@ -83,6 +83,17 @@
 
 ## 2. Tech Stack
 Network OS: Arista cEOS (v4.35.1F)
+- OSPF: Backbone Triangle 구간(ceos1-ceos2-ceos3) 및 각 Loopback 도달성 확보를 위한 내부 라우팅 01_config_underlay.yml에서
+  모든 인터페이스를 Area0로 구성하여 네트워크 전체의 IP 도달성 확보.
+- BGP: overlay 구간,Loopback 을 기반으로 한 iBGP 피어링 및 경로 확장, 
+  03_config_bgp_ecmp.yml에서 ceos1, 2, 3 간 풀-메시(Full-mesh)를 형성하여 유연한 경로 광고 체계를 구축 
+- IGMP: 호스트와 라우터 간 멀티캐스트 그룹 멤버십 관리 프로토콜
+- PIM: unicast route 경로를 따라 multicast 경로 구성
+- PIM-SM: 유니캐스트 경로를 기반으로 트리를 구성하며, RP(Rendezvous Point)를 통해 요청이 있는 지점에만 데이터를 복제/전달
+- VARP: Arista 특화 고가용성 다중화 기능 - 여러대의 라우터가 동일한 VIP와 MAC을 공유하는 방식
+  02_config_ha_gateway.yml을 통해 Cloud 영역의 ceos1, ceos2를 하나의 가상 게이트웨이(172.16.1.254)로 묶어 무중단 환경을 제공
+- ECMP: 목적지까지의 metric이 동일한 다중경로로 분산전송 
+  Backbone 구간의 삼각형 토폴로지에서 중복 경로를 활용해 트래픽 부하 분산을 구현
 
 Orchestration: Containerlab (v0.72.0+)
 
@@ -94,7 +105,7 @@ Notification: Slack API (Incoming Webhooks)
 
 Infrastructure: AWS EC2 (Ubuntu 24.04 LTS) 또는 WSL2
 
-Testing Tools: Alpine Linux, socat (Multicast Testing), tcpdump
+Testing Tools: ubuntu Linux, socat (Multicast Testing), tcpdump, iperf3, mtr
 
 ## 3. Project Structure
 
@@ -115,8 +126,9 @@ Testing Tools: Alpine Linux, socat (Multicast Testing), tcpdump
 │       ├── 01_config_underlay.yml      # 인프라: OSPF 및 IP 구축
 │       ├── 02_config_ha_gateway.yml    # 가용성: VARP Active-Active 설정
 │       ├── 03_config_bgp_ecmp.yml      # 확장: iBGP 및 ECMP 부하분산
-│       ├── 04_config_multicast.yml     # 서비스: PIM-SM 및 IGMP 설정
+│       ├── 04_get_zabbix_token.yml     # [Update] 모니터링 연동을 위한 토큰 관리
 │       └── 05_register_monitoring.yml  # 운영: Zabbix API 등록 및 Slack 연동
+│       └── 08_final_fix_all.yml        # multicast 및 PIM 등 설정 
 ├── docker/
 │   ├── ceos-lab/             # Data Plane: Containerlab 토폴로지 설계도
 │   └── monitoring/           # Management Plane: Zabbix, Grafana (Docker Compose)
@@ -134,7 +146,7 @@ source venv/bin/activate
 #### 정상 구동 검증 containerlab topology 구성 확인
 sudo clab graph -t ./docker/ceos-lab/topology.clab.yml 
 
-### Step 2. 인프라 설정 (Day 1)
+### Step 2. 인프라 설정
 # [1] 기초 시스템 설정: 시간 동기화 및 모니터링 보안 채널(SNMPv3) 확보
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/00-1_config_ntp.yml 
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/00-2_config_snmp.yml
@@ -146,18 +158,21 @@ ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/01_config_
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/02_config_ha_gateway.yml
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/03_config_bgp_ecmp.yml
 
-### Step 3. 서비스 활성화 및 모니터링 통합 (Day 2)
-# [4] 서비스 주입: 금융 데이터 전송을 위한 Multicast(PIM-SM) 활성화
-ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/04_config_multicast.yml
+### Step 3. 서비스 활성화 및 모니터링 통
 
-# [5] 운영 통합: Zabbix API 연동 및 장애 알림(slack) 자동화
+# [4] 운영 통합: Zabbix API 연동 및 장애 알림(slack) 자동화
+ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/04_get_zabbix_token.yml
 docker compose -f ./docker/monitoring/docker-compose.yml up -d
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/05_register_monitoring.yml
+
+# [5] 서비스 주입: 금융 데이터 전송을 위한 Multicast(PIM-SM) 활성화
+ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/08_final_fix_all.yml
 
 ### Step 4. 호스트 라우팅 설정 (Data Plane 활성화)
 컨테이너 호스트들이 관리망이 아닌 Arista Fabric을 타도록 라우팅을 추가합니다.
 
 # cloud-host -> internal-host 경로 추가
+
 docker exec clab-ceos-triangle-cloud-host ip route add 192.168.10.0/24 via 172.16.1.254
 
 # internal-host -> cloud-host 경로 추가
@@ -212,10 +227,10 @@ Interface    Virtual IP Address    Protocol    State
 Et3          172.16.1.254          U           active
 
 4) 멀티캐스트 트리 확인: show ip mroute (SPT 생성 확인)
-PIM-SM 프로토콜이 정상 가동되어 RP(1.1.1.1)를 중심으로 멀티캐스트 배달 경로가 생성되었는지 확인합니다.
+PIM-SM 프로토콜이 정상 가동되어 RP(3.3.3.3)를 중심으로 멀티캐스트 배달 경로가 생성되었는지 확인합니다.
 ceos3# show ip mroute
 239.1.1.1
-  0.0.0.0, 0:00:14, RP 1.1.1.1, flags: W
+  0.0.0.0, 0:00:14, RP 3.3.3.3, flags: W
     Incoming interface: Ethernet1 (via OSPF 1.1.1.1)
     Outgoing interface list:
       Ethernet3  <-- 수신자(Receiver) 접점 활성화
@@ -243,3 +258,25 @@ snmpwalk -v3 -l authPriv -u admin -a SHA -A [AUTH_PW] -x AES -X [PRIV_PW] 172.20
 iso.3.6.1.2.1.1.5.0 = STRING: "ceos1"
 
 ---
+
+##7. 기술적 성과 및 분석 (Troubleshooting & Analysis)
+핵심 요약: PIM-SM 제어 평면(Control-Plane)의 완전 자동화 구현 및 가상화 인프라 내 데이터 평면(Data-Plane) 병목 구간 식별
+
+IaC 기반 제어 평면 검증 성공: Ansible 플레이북(01~08)을 통해 OSPF, iBGP, VARP 및 PIM-SM의 전 과정을 자동화하였으며, 각 라우터에서 멀티캐스트 라우팅 테이블(mroute) 및 트리 엔트리가 정상적으로 형성됨을 확인했습니다.
+
+데이터 평면 전송 병목 현상 포착: 제어 평면의 정상 동작에도 불구하고 최종 UDP 패킷 전송이 불가능했던 지점을 가상 인터페이스(veth)와 리눅스 브리지 구간으로 특정했습니다.
+
+인프라적 제약 사항 확인:
+
+L2 Snooping 이슈: Containerlab 기반 리눅스 브리지의 mcast_snooping 활성화 시, 가상 라우터의 IGMP 제어 메시지가 상위로 투명하게 전달되지 않는 현상을 확인했습니다.
+
+가상화 환경의 한계: 실제 하드웨어 ASIC이 없는 컨테이너 커널 환경에서 가상 인터페이스 간 멀티캐스트 패킷 복제(Replication) 시 발생하는 비결정적 드랍 가능성을 식별했습니다.
+
+##8. 향후 과제 (Future Work)
+EBGP 기반 하이브리드 클라우드 아키텍처 확장:
+
+현재의 내부 AS(65100) 구성을 넘어, Edge 라우터(ceos1, 2)와 AWS Transit Gateway(TGW) 간의 EBGP 피어링을 통한 표준 하이브리드 경로 연동 구현.
+
+가상 데이터 평면(Data-Plane) 고도화:
+
+리눅스 기본 브리지의 제약을 극복하기 위해 OVS(Open vSwitch) 환경을 도입하여 멀티캐스트 포워딩 정합성을 재검증하고, 인프라 추상화 수준을 높이는 테스트 진행.
