@@ -1,4 +1,4 @@
----
+
 
 # [Project] Arista cEOS 기반 고가용성 멀티캐스트 망 자동화 및 통합 모니터링 구축
 
@@ -256,8 +256,6 @@ snmpwalk -v3 -l authPriv -u admin -a SHA -A [AUTH_PW] -x AES -X [PRIV_PW] 172.20
 ~/infra-automation-for-securities main infra-automation-for-securities                                         13:38:18
 ❯ snmpwalk -v3 -l authPriv -u admin -a SHA -A 'admin123' -x AES -X 'admin123' 172.20.20.11 .1.3.6.1.2.1.1.5.0
 iso.3.6.1.2.1.1.5.0 = STRING: "ceos1"
-
----
 
 ##7. 기술적 성과 및 분석 (Troubleshooting & Analysis)
 핵심 요약: PIM-SM 제어 평면(Control-Plane)의 완전 자동화 구현 및 가상화 인프라 내 데이터 평면(Data-Plane) 병목 구간 식별
