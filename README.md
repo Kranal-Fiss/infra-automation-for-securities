@@ -147,35 +147,35 @@ source venv/bin/activate
 sudo clab graph -t ./docker/ceos-lab/topology.clab.yml 
 
 ### Step 2. 인프라 설정
-# [1] 기초 시스템 설정: 시간 동기화 및 모니터링 보안 채널(SNMPv3) 확보
+#### [1] 기초 시스템 설정: 시간 동기화 및 모니터링 보안 채널(SNMPv3) 확보
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/00-1_config_ntp.yml 
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/00-2_config_snmp.yml
 
-# [2] 네트워크 뼈대 구축: OSPF 언더레이를 통한 루프백 도달성 확보
+#### [2] 네트워크 뼈대 구축: OSPF 언더레이를 통한 루프백 도달성 확보
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/01_config_underlay.yml
 
-# [3] 고가용성 및 라우팅 확장: VARP 게이트웨이 및 iBGP ECMP 설정
+#### [3] 고가용성 및 라우팅 확장: VARP 게이트웨이 및 iBGP ECMP 설정
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/02_config_ha_gateway.yml
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/03_config_bgp_ecmp.yml
 
 ### Step 3. 서비스 활성화 및 모니터링 통
 
-# [4] 운영 통합: Zabbix API 연동 및 장애 알림(slack) 자동화
+#### [4] 운영 통합: Zabbix API 연동 및 장애 알림(slack) 자동화
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/04_get_zabbix_token.yml
 docker compose -f ./docker/monitoring/docker-compose.yml up -d
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/05_register_monitoring.yml
 
-# [5] 서비스 주입: 금융 데이터 전송을 위한 Multicast(PIM-SM) 활성화
+#### [5] 서비스 주입: 금융 데이터 전송을 위한 Multicast(PIM-SM) 활성화
 ansible-playbook -i ansible/inventory/inventory.yml ansible/playbooks/08_final_fix_all.yml
 
 ### Step 4. 호스트 라우팅 설정 (Data Plane 활성화)
 컨테이너 호스트들이 관리망이 아닌 Arista Fabric을 타도록 라우팅을 추가합니다.
 
-# cloud-host -> internal-host 경로 추가
+#### cloud-host -> internal-host 경로 추가
 
 docker exec clab-ceos-triangle-cloud-host ip route add 192.168.10.0/24 via 172.16.1.254
 
-# internal-host -> cloud-host 경로 추가
+#### internal-host -> cloud-host 경로 추가
 docker exec clab-ceos-triangle-internal-host ip route add 172.16.1.0/24 via 192.168.10.1
 
 ## 5. 핵심 설계 및 검증 포인트 (Architecture Points)
@@ -250,14 +250,14 @@ Neighbor Status Codes: m - Under maintenance
 
 6) SNMPv3 보안 통신 검증
 SNMPv3(Auth/Priv)를 통해 모니터링 서버(Zabbix)와 안전하게 데이터를 주고받는지 검증합니다.
-# 제어 노드(WSL/EC2)에서 실행
+#### 제어 노드(WSL/EC2)에서 실행
 snmpwalk -v3 -l authPriv -u admin -a SHA -A [AUTH_PW] -x AES -X [PRIV_PW] 172.20.20.11 .1.3.6.1.2.1.1.5.0
 
 ~/infra-automation-for-securities main infra-automation-for-securities                                         13:38:18
 ❯ snmpwalk -v3 -l authPriv -u admin -a SHA -A 'admin123' -x AES -X 'admin123' 172.20.20.11 .1.3.6.1.2.1.1.5.0
 iso.3.6.1.2.1.1.5.0 = STRING: "ceos1"
 
-##7. 기술적 성과 및 분석 (Troubleshooting & Analysis)
+## 7. 기술적 성과 및 분석 (Troubleshooting & Analysis)
 핵심 요약: PIM-SM 제어 평면(Control-Plane)의 완전 자동화 구현 및 가상화 인프라 내 데이터 평면(Data-Plane) 병목 구간 식별
 
 IaC 기반 제어 평면 검증 성공: Ansible 플레이북(01~08)을 통해 OSPF, iBGP, VARP 및 PIM-SM의 전 과정을 자동화하였으며, 각 라우터에서 멀티캐스트 라우팅 테이블(mroute) 및 트리 엔트리가 정상적으로 형성됨을 확인했습니다.
@@ -270,7 +270,7 @@ L2 Snooping 이슈: Containerlab 기반 리눅스 브리지의 mcast_snooping �
 
 가상화 환경의 한계: 실제 하드웨어 ASIC이 없는 컨테이너 커널 환경에서 가상 인터페이스 간 멀티캐스트 패킷 복제(Replication) 시 발생하는 비결정적 드랍 가능성을 식별했습니다.
 
-##8. 향후 과제 (Future Work)
+## 8. 향후 과제 (Future Work)
 EBGP 기반 하이브리드 클라우드 아키텍처 확장:
 
 현재의 내부 AS(65100) 구성을 넘어, Edge 라우터(ceos1, 2)와 AWS Transit Gateway(TGW) 간의 EBGP 피어링을 통한 표준 하이브리드 경로 연동 구현.
